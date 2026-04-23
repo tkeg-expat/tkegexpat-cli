@@ -31,16 +31,12 @@ DISPLAY_FIELDS = [
     ("corporate_price", "Price"),
     ("default_marking_currency", "Currency"),
     ("main_product", "Main Product"),
-    ("url_name", "URL Name"),
-    ("Slug", "Slug"),
     ("tkeg_product_id (New)", "Product ID"),
     ("belonging_jurisdiction", "Jurisdiction"),
     ("full-applicable-jurisdictions", "Applicable Jurisdictions"),
     ("supply_info", "Supply"),
-    ("case-study-projects-items", "Case Studies"),
     ("Created Date", "Created"),
     ("Modified Date", "Modified"),
-    ("_id", "Bubble ID"),
 ]
 
 HIDDEN_FIELDS = {
@@ -48,6 +44,10 @@ HIDDEN_FIELDS = {
     "product_image",
     "TKEG Expat Ireland Stripe Price ID",
     "TKEG Expat US Stripe Price ID",
+    "url_name",
+    "Slug",
+    "case-study-projects-items",
+    "_id",
 }
 
 
