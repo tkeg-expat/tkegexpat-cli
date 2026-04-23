@@ -34,7 +34,6 @@ TABLE_COLUMNS = [
     ("tkeg_product_id (New)", "PID"),
     ("belonging_jurisdiction", "Jurisdiction"),
     ("full-applicable-jurisdictions", "Applicable"),
-    ("supply_info", "Supply"),
 ]
 
 HIDDEN_FIELDS = {
@@ -44,6 +43,7 @@ HIDDEN_FIELDS = {
     "TKEG Expat US Stripe Price ID",
     "url_name", "Slug",
     "case-study-projects-items", "_id",
+    "supply_info",
 }
 
 JURISDICTION_FIELDS = {"belonging_jurisdiction", "full-applicable-jurisdictions"}
