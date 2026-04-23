@@ -87,8 +87,8 @@ def get_all() -> dict:
     return _cache.get("countries", {})
 
 
-def id_to_abbr(bubble_id: str) -> str:
+def id_to_abbr(record_id: str) -> str:
     for abbr, c in get_all().items():
-        if c["_id"] == bubble_id:
+        if c["_id"] == record_id:
             return abbr
-    return bubble_id
+    return record_id
