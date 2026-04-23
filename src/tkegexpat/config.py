@@ -8,8 +8,11 @@ from typing import Optional
 CONFIG_DIR = Path.home() / ".config" / "tkegexpat"
 CREDENTIALS_FILE = CONFIG_DIR / "credentials.json"
 TOKEN_CACHE_FILE = CONFIG_DIR / "token.json"
+COUNTRIES_CACHE_FILE = CONFIG_DIR / "countries.json"
+SETTINGS_FILE = CONFIG_DIR / "settings.json"
 
 AUTH_URL = "https://www.tkegexpat.cn/api/1.1/wf/get-red-queen-api"
+API_BASE = "https://tkegexpat.com"
 
 
 def ensure_config_dir():
@@ -46,6 +49,20 @@ def load_token() -> Optional[dict]:
         return json.loads(TOKEN_CACHE_FILE.read_text(encoding="utf-8"))
     except Exception:
         return None
+
+
+def load_settings() -> dict:
+    if not SETTINGS_FILE.exists():
+        return {"language": "en_us"}
+    try:
+        return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {"language": "en_us"}
+
+
+def save_settings(settings: dict):
+    ensure_config_dir()
+    SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
 
 
 def clear_credentials():
