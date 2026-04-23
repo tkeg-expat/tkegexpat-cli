@@ -99,6 +99,11 @@ def cmd_product(args):
     _product(args)
 
 
+def cmd_select(args):
+    from .product import cmd_select as _select
+    _select(args)
+
+
 def cmd_help(args):
     from . import __version__
     print(
@@ -109,6 +114,7 @@ Commands:
   logout         Clear saved credentials and token
   status         Show current auth status
   product <code> Query products (e.g. usci = US + company-incorporation)
+  select <#>     View product details (supply, documents, requirements)
   update         Update CLI to the latest version
   help           Show this help message
 
@@ -123,6 +129,7 @@ COMMANDS = {
     "logout": cmd_logout,
     "status": cmd_status,
     "product": cmd_product,
+    "select": cmd_select,
     "update": cmd_update,
     "help": cmd_help,
 }
