@@ -7,18 +7,25 @@ import time
 from typing import Optional
 
 from .config import COUNTRIES_CACHE_FILE, ensure_config_dir
+from .country_data import COUNTRIES as BUNDLED
 
 CACHE_MAX_AGE = 86400  # re-sync after 24h
 
 _cache = None
 
 
+def _load_bundled() -> dict:
+    by_abbr = {}
+    for abbr, c in BUNDLED.items():
+        by_abbr[abbr] = {"_id": c["_id"], "name": c["name"], "abbr": abbr, "slug": c["slug"]}
+    return {"fetched_at": 0, "count": len(by_abbr), "countries": by_abbr}
+
+
 def _load_local() -> Optional[dict]:
     if not COUNTRIES_CACHE_FILE.exists():
         return None
     try:
-        data = json.loads(COUNTRIES_CACHE_FILE.read_text(encoding="utf-8"))
-        return data
+        return json.loads(COUNTRIES_CACHE_FILE.read_text(encoding="utf-8"))
     except Exception:
         return None
 
@@ -61,27 +68,20 @@ def sync(token: str, force: bool = False):
         records = _fetch_from_api(token)
         _cache = _save_local(records, now)
     except Exception as e:
-        if local:
-            _cache = local
-            print(f"Warning: country sync failed ({e}), using local cache.", file=sys.stderr)
-        else:
-            print(f"Error: could not fetch countries: {e}", file=sys.stderr)
-            sys.exit(1)
+        fallback = local or _load_bundled()
+        _cache = fallback
+        print(f"Warning: country sync failed ({e}), using {'local' if local else 'bundled'} cache.", file=sys.stderr)
 
 
 def lookup(abbr: str) -> Optional[dict]:
     global _cache
     if _cache is None:
-        _cache = _load_local()
-    if _cache is None:
-        return None
+        _cache = _load_local() or _load_bundled()
     return _cache.get("countries", {}).get(abbr.upper())
 
 
 def get_all() -> dict:
     global _cache
     if _cache is None:
-        _cache = _load_local()
-    if _cache is None:
-        return {}
+        _cache = _load_local() or _load_bundled()
     return _cache.get("countries", {})
