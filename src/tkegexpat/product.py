@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import sys
 from typing import List
 
@@ -26,7 +25,30 @@ SERVICE_TYPES = {
     "os": "other-services",
 }
 
-NEW2_FIELDS = {"product-name-new2"}
+DISPLAY_FIELDS = [
+    ("product-name-new2", "Product Name"),
+    ("service_type", "Service Type"),
+    ("corporate_price", "Price"),
+    ("default_marking_currency", "Currency"),
+    ("main_product", "Main Product"),
+    ("url_name", "URL Name"),
+    ("Slug", "Slug"),
+    ("tkeg_product_id (New)", "Product ID"),
+    ("belonging_jurisdiction", "Jurisdiction"),
+    ("full-applicable-jurisdictions", "Applicable Jurisdictions"),
+    ("supply_info", "Supply"),
+    ("case-study-projects-items", "Case Studies"),
+    ("Created Date", "Created"),
+    ("Modified Date", "Modified"),
+    ("_id", "Bubble ID"),
+]
+
+HIDDEN_FIELDS = {
+    "Created By",
+    "product_image",
+    "TKEG Expat Ireland Stripe Price ID",
+    "TKEG Expat US Stripe Price ID",
+}
 
 
 def parse_code(code: str):
@@ -50,62 +72,79 @@ def parse_code(code: str):
 
 def _format_value(key: str, value, lang: str) -> str:
     if value is None:
-        return ""
+        return "-"
     if key.lower().endswith("new2") or key.lower().endswith("-new2"):
         extracted = extract_lang(str(value), lang)
         if extracted:
             return extracted
     if isinstance(value, list):
-        return f"[{len(value)} items]"
+        return str(len(value))
     if isinstance(value, bool):
         return "Yes" if value else "No"
     s = str(value)
-    if len(s) > 60:
-        return s[:57] + "..."
+    if len(s) > 22 and key in ("Created Date", "Modified Date"):
+        return s[:10]
     return s
 
 
-def _print_table(products: List[dict], lang: str):
+def _print_cards(products: List[dict], lang: str):
     if not products:
         print("No products found.")
         return
 
-    skip = {"_id"}
-    keys = []
-    for k in products[0]:
-        if k not in skip:
-            keys.append(k)
+    known_keys = {f[0] for f in DISPLAY_FIELDS}
 
-    rows = []
-    for p in products:
-        row = {"_id": p.get("_id", "")[:16] + "..."}
-        for k in keys:
-            row[k] = _format_value(k, p.get(k), lang)
-        rows.append(row)
+    for i, p in enumerate(products):
+        if i > 0:
+            print()
+        name = _format_value("product-name-new2", p.get("product-name-new2"), lang)
+        price = p.get("corporate_price", "-")
+        currency = p.get("default_marking_currency", "")
+        print(f"  {name}")
+        print(f"  {currency} {price}")
+        print("  " + "-" * 40)
 
-    all_keys = ["_id"] + keys
-    widths = {}
-    for k in all_keys:
-        widths[k] = max(len(k), *(len(r.get(k, "")) for r in rows))
-        widths[k] = min(widths[k], 40)
+        for field_key, label in DISPLAY_FIELDS:
+            if field_key in ("product-name-new2", "corporate_price", "default_marking_currency"):
+                continue
+            val = _format_value(field_key, p.get(field_key), lang)
+            print(f"  {label:<26} {val}")
 
-    header = " | ".join(k.ljust(widths[k])[:widths[k]] for k in all_keys)
-    sep = "-+-".join("-" * widths[k] for k in all_keys)
+        extra = [k for k in p if k not in known_keys and k not in HIDDEN_FIELDS]
+        for k in extra:
+            val = _format_value(k, p.get(k), lang)
+            print(f"  {k:<26} {val}")
+
+
+def _print_summary(products: List[dict], lang: str):
+    if not products:
+        print("No products found.")
+        return
+
+    name_w = max(len(_format_value("product-name-new2", p.get("product-name-new2"), lang)) for p in products)
+    name_w = min(name_w, 45)
+
+    header = f"  {'Product':<{name_w}}  {'Price':>8}  {'Main':>4}  {'Modified':<10}"
     print(header)
-    print(sep)
-    for r in rows:
-        line = " | ".join(r.get(k, "").ljust(widths[k])[:widths[k]] for k in all_keys)
-        print(line)
+    print("  " + "-" * len(header.strip()))
+
+    for p in products:
+        name = _format_value("product-name-new2", p.get("product-name-new2"), lang)
+        currency = p.get("default_marking_currency", "")
+        price = f"{currency} {p.get('corporate_price', '-')}"
+        main = "Yes" if p.get("main_product") else ""
+        modified = str(p.get("Modified Date", ""))[:10]
+        print(f"  {name:<{name_w}}  {price:>8}  {main:>4}  {modified:<10}")
 
 
 def cmd_product(args):
     if not args:
-        print("Usage: tkegexpat product <code>", file=sys.stderr)
-        print("  e.g. tkegexpat product usci  (US + company-incorporation)", file=sys.stderr)
+        print("Usage: product <code>", file=sys.stderr)
+        print("  e.g. product usci  (US + company-incorporation)", file=sys.stderr)
         print(f"\nService type codes:", file=sys.stderr)
         for code, name in sorted(SERVICE_TYPES.items()):
             print(f"  {code}  {name}", file=sys.stderr)
-        sys.exit(1)
+        return
 
     from .config import load_settings
     lang = load_settings().get("language", "en_us")
@@ -119,4 +158,15 @@ def cmd_product(args):
     ]
     products = api_list("product:all", constraints)
     print(f"Found {len(products)} product(s).\n")
-    _print_table(products, lang)
+
+    if len(products) == 1:
+        _print_cards(products, lang)
+    elif len(products) <= 5:
+        _print_summary(products, lang)
+        print(f"\n  Showing summary. Use 'product {args[0]} -v' for full details.")
+    else:
+        _print_summary(products, lang)
+
+    if len(products) > 1 and "-v" in args:
+        print()
+        _print_cards(products, lang)
