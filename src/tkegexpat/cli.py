@@ -13,14 +13,17 @@ REPO = "tkeg-expat/tkegexpat-cli"
 AUTH_EXEMPT = {"login", "logout", "help", "update"}
 
 
-def _ensure_auth(command: str):
+def _ensure_auth(command: str, interactive: bool = False):
     if command in AUTH_EXEMPT:
         return
     try:
         token = require_token()
     except RuntimeError:
-        print("Not logged in. Run: tkegexpat login", file=sys.stderr)
-        sys.exit(1)
+        msg = "Not logged in. Run: login" if interactive else "Not logged in. Run: tkegexpat login"
+        print(msg, file=sys.stderr)
+        if not interactive:
+            sys.exit(1)
+        raise
     from . import countries
     countries.sync(token)
 
@@ -125,20 +128,44 @@ COMMANDS = {
 }
 
 
+def _run_command(command: str, args: list, interactive: bool = False):
+    handler = COMMANDS.get(command)
+    if handler is None:
+        print(f"Unknown command: {command}", file=sys.stderr)
+        print("Type 'help' for available commands.", file=sys.stderr)
+        return
+    try:
+        _ensure_auth(command, interactive=interactive)
+    except RuntimeError:
+        return
+    handler(args)
+
+
+def _interactive():
+    from . import __version__
+    print(f"tkegexpat v{__version__} — interactive mode")
+    print("Type 'help' for commands, 'exit' to quit.\n")
+    while True:
+        try:
+            line = input("tkegexpat> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if not line:
+            continue
+        parts = line.split()
+        command = parts[0]
+        if command in ("exit", "quit"):
+            break
+        _run_command(command, parts[1:], interactive=True)
+
+
 def main():
     args = sys.argv[1:]
 
     if not args:
-        cmd_help([])
+        _interactive()
         return
 
     command = args[0]
-    handler = COMMANDS.get(command)
-
-    if handler is None:
-        print(f"Unknown command: {command}", file=sys.stderr)
-        print("Run 'tkegexpat help' for available commands.", file=sys.stderr)
-        sys.exit(1)
-
-    _ensure_auth(command)
-    handler(args[1:])
+    _run_command(command, args[1:])
