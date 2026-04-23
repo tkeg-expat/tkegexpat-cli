@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import os
 import sys
-import textwrap
 from typing import List, Optional
 
 from .api import api_get, api_list
 from .countries import id_to_abbr, lookup as country_lookup
-from .i18n import extract_lang
+from .i18n import display_width, extract_lang, ljust_cjk, strip_markup, wrap_cjk
 
 SERVICE_TYPES = {
     "ci": "company-incorporation",
@@ -27,6 +27,7 @@ SERVICE_TYPES = {
 }
 
 NAME_MAX_WIDTH = 40
+DETAIL_COL_MAX = 40
 
 TABLE_COLUMNS = [
     ("_index", "#"),
@@ -52,8 +53,84 @@ HIDDEN_FIELDS = {
 JURISDICTION_FIELDS = {"belonging_jurisdiction", "full-applicable-jurisdictions"}
 SERVICE_TYPE_TO_CODE = {v: k.upper() for k, v in SERVICE_TYPES.items()}
 
+BOLD = "\033[1m"
+DIM = "\033[2m"
+RESET = "\033[0m"
+MIN_COL_WIDTH = 6
+
+_DOT_COLORS = [
+    "\033[36m",  # cyan
+    "\033[33m",  # yellow
+    "\033[32m",  # green
+    "\033[35m",  # magenta
+    "\033[34m",  # blue
+    "\033[31m",  # red
+]
+_dot_index = 0
+
+
+def _dot(label: str) -> str:
+    global _dot_index
+    color = _DOT_COLORS[_dot_index % len(_DOT_COLORS)]
+    _dot_index += 1
+    return f"  {color}●{RESET} {BOLD}{label}{RESET}"
+
+
+def _reset_dots():
+    global _dot_index
+    _dot_index = 0
+
 _last_products = []
 _last_lang = "en_us"
+
+
+def _term_width() -> int:
+    try:
+        return os.get_terminal_size().columns
+    except (ValueError, OSError):
+        return 80
+
+
+def _fit_widths(widths: dict, labels: list, indent: int) -> dict:
+    separators = 3 * (len(labels) - 1)
+    available = _term_width() - indent - separators - 2
+    if available < len(labels) * MIN_COL_WIDTH:
+        available = len(labels) * MIN_COL_WIDTH
+    fitted = {}
+    for l in labels:
+        fitted[l] = min(widths[l], DETAIL_COL_MAX)
+    total = sum(fitted[l] for l in labels)
+    if total <= available:
+        remainder = available - total
+        for l in labels:
+            if remainder <= 0:
+                break
+            give = min(remainder, widths[l] - fitted[l])
+            if give > 0:
+                fitted[l] += give
+                remainder -= give
+        return fitted
+    for l in labels:
+        fitted[l] = max(MIN_COL_WIDTH, int(fitted[l] * available / total))
+    overshoot = sum(fitted[l] for l in labels) - available
+    if overshoot > 0:
+        shrinkable = sorted(labels, key=lambda l: fitted[l], reverse=True)
+        for l in shrinkable:
+            if overshoot <= 0:
+                break
+            can = fitted[l] - MIN_COL_WIDTH
+            if can <= 0:
+                continue
+            take = min(overshoot, can)
+            fitted[l] -= take
+            overshoot -= take
+    remainder = available - sum(fitted[l] for l in labels)
+    for l in labels:
+        if remainder <= 0:
+            break
+        fitted[l] += 1
+        remainder -= 1
+    return fitted
 
 
 def parse_code(code: str):
@@ -87,14 +164,14 @@ def _format_value(key: str, value, lang: str) -> str:
     if key.lower().endswith("new2") or key.lower().endswith("-new2"):
         extracted = extract_lang(str(value), lang)
         if extracted:
-            return extracted
+            return strip_markup(extracted)
     if isinstance(value, list):
         return str(len(value))
     if key == "main_product":
         return "Yes" if value else "No"
     if isinstance(value, bool):
         return "Yes" if value else "No"
-    return str(value)
+    return strip_markup(str(value))
 
 
 def _print_table(products: List[dict], lang: str):
@@ -119,126 +196,119 @@ def _print_table(products: List[dict], lang: str):
     labels = [label for _, label in TABLE_COLUMNS]
     widths = {}
     for label in labels:
-        w = max(len(label), *(len(r[label]) for r in rows))
-        if label == "Name":
-            w = min(w, NAME_MAX_WIDTH)
+        w = max(display_width(label), *(display_width(r[label]) for r in rows))
         widths[label] = w
+    widths = _fit_widths(widths, labels, indent=2)
 
-    header = "  " + " | ".join(label.ljust(widths[label]) for label in labels)
-    sep = "  " + "-+-".join("-" * widths[label] for label in labels)
+    header = f"  {BOLD}" + f" {DIM}│{RESET}{BOLD} ".join(ljust_cjk(label, widths[label]) for label in labels) + RESET
+    sep = f"  {DIM}" + "─┼─".join("─" * widths[label] for label in labels) + RESET
     print(header)
     print(sep)
 
     for r in rows:
-        name = r["Name"]
-        if len(name) <= NAME_MAX_WIDTH:
-            line = "  " + " | ".join(r[label].ljust(widths[label]) for label in labels)
-            print(line)
-        else:
-            wrapped = textwrap.wrap(name, NAME_MAX_WIDTH)
-            for li, part in enumerate(wrapped):
-                if li == 0:
-                    r_copy = dict(r)
-                    r_copy["Name"] = part
-                    line = "  " + " | ".join(r_copy[label].ljust(widths[label]) for label in labels)
-                    print(line)
-                else:
-                    pad = "  " + " " * widths["#"] + " | "
-                    print(pad + part)
+        wrapped = {l: wrap_cjk(r[l], widths[l]) for l in labels}
+        max_lines = max(len(v) for v in wrapped.values())
+        for li in range(max_lines):
+            parts = []
+            for l in labels:
+                cell = wrapped[l]
+                text = cell[li] if li < len(cell) else ""
+                parts.append(ljust_cjk(text, widths[l]))
+            print("  " + f" {DIM}│{RESET} ".join(parts))
 
-    print(f"\n  Select a product for details: select <#>")
+    print(f"\n  {DIM}View product details: view <#>{RESET}")
 
 
-def _fetch_supply_detail(supply_id: str, lang: str):
-    print(f"  Fetching supply details...")
+def _print_detail_table(rows: List[dict], labels: List[str], indent: int = 4,
+                        span_rows: Optional[List[dict]] = None):
+    if not rows and not span_rows:
+        return
+    pad = " " * indent
+    all_rows = rows or []
+    widths = {}
+    for l in labels:
+        w = max(display_width(l), *(display_width(r.get(l, "-")) for r in all_rows)) if all_rows else display_width(l)
+        widths[l] = w
+    widths = _fit_widths(widths, labels, indent)
+    total_width = sum(widths[l] for l in labels) + 3 * (len(labels) - 1)
 
-    supply = api_get(f"/api/1.1/obj/supply_all/{supply_id}")
-    s = supply.get("response", supply)
+    header = pad + BOLD + f" {DIM}│{RESET}{BOLD} ".join(ljust_cjk(l, widths[l]) for l in labels) + RESET
+    sep = pad + DIM + "─┼─".join("─" * widths[l] for l in labels) + RESET
+    print(header)
+    print(sep)
 
-    name = _format_value("supply_product_name", s.get("supply_product_name"), lang)
-    cur = s.get("marking_currency", "")
-    cost = s.get("cost_price", "-")
-    est_days = s.get("estimated-business-days", "-")
-    est_gov = s.get("estimated-government-fee", "-")
-    vat = s.get("vat", "-")
-    memo = _format_value("public_memo_new2", s.get("public_memo_new2"), lang)
-    internal = s.get("internal_memo", "")
-    present = "Yes" if s.get("applicant must be present") else "No"
+    span_map = {}
+    if span_rows:
+        for sr in span_rows:
+            span_map.setdefault(sr["_before"], []).append(sr["_text"])
 
-    print(f"\n  === Supply: {name} ===")
-    print(f"  Cost Price             {cur} {cost}")
-    print(f"  Est. Business Days     {est_days}")
-    print(f"  Est. Government Fee    {est_gov}")
-    print(f"  VAT                    {vat}")
-    print(f"  Applicant Present      {present}")
-    if memo and memo != "-":
-        print(f"\n  Memo:")
-        for line in textwrap.wrap(memo, 70):
-            print(f"    {line}")
-    if internal:
-        print(f"\n  Internal Memo:")
-        for line in textwrap.wrap(str(internal), 70):
-            print(f"    {line}")
-
-    included_ids = s.get("included services (new)", [])
-    if included_ids:
-        print(f"\n  --- Included Services ({len(included_ids)}) ---")
-        for sid in included_ids:
-            try:
-                svc = api_get(f"/api/1.1/obj/supply_included_service/{sid}")
-                sv = svc.get("response", svc)
-                svc_name = _format_value("service-name_new2", sv.get("service-name_new2"), lang)
-                qty = sv.get("quantity-included", "-")
-                excluded = sv.get("not-included", False)
-                status = "EXCLUDED" if excluded else f"x{qty}"
-                print(f"    {status:<10} {svc_name}")
-            except Exception:
-                print(f"    {sid}")
-
-    doc_ids = s.get("data: document requirements", [])
-    if doc_ids:
-        print(f"\n  --- Required Documents ({len(doc_ids)}) ---")
-        for did in doc_ids:
-            try:
-                doc = api_get(f"/api/1.1/obj/supply_requirement_document/{did}")
-                d = doc.get("response", doc)
-                doc_memo = _format_value("memo-NEW2", d.get("memo-NEW2"), lang)
-                doc_type = d.get("document_type", "-")
-                entity = d.get("applicable_entity", "-")
-                fmt = d.get("document_format", "")
-                print(f"    [{entity}] {doc_type} ({fmt})")
-                if doc_memo and doc_memo != "-":
-                    for line in textwrap.wrap(doc_memo, 66):
-                        print(f"      {line}")
-            except Exception:
-                print(f"    {did}")
-
-    req_ids = s.get("data: requirements", [])
-    if req_ids:
-        print(f"\n  --- Requirements ({len(req_ids)}) ---")
-        for rid in req_ids:
-            try:
-                req = api_get(f"/api/1.1/obj/supply_requirement/{rid}")
-                r = req.get("response", req)
-                req_name = _format_value("requirement_name-NEW2", r.get("requirement_name-NEW2"), lang)
-                condition = _format_value("condition-NEW2", r.get("condition-NEW2"), lang)
-                has_sol = "Yes" if r.get("has solution") else "No"
-                included = r.get("item_included", 0)
-                print(f"    {req_name}")
-                if condition and condition != "-":
-                    print(f"      Condition: {condition}")
-                print(f"      Solution available: {has_sol}  |  Included: {included}")
-            except Exception:
-                print(f"    {rid}")
+    for ri, r in enumerate(all_rows):
+        for span_text in span_map.get(ri, []):
+            if ri > 0:
+                print()
+            print(pad + BOLD + ljust_cjk(span_text, total_width) + RESET)
+            print(sep)
+        wrapped = {l: wrap_cjk(r.get(l, "-") or "-", widths[l]) for l in labels}
+        max_lines = max(len(v) for v in wrapped.values())
+        for li in range(max_lines):
+            parts = []
+            for l in labels:
+                cell_lines = wrapped[l]
+                text = cell_lines[li] if li < len(cell_lines) else ""
+                parts.append(ljust_cjk(text, widths[l]))
+            print(pad + f" {DIM}│{RESET} ".join(parts))
 
 
-def cmd_select(args):
+def _print_kv_table(pairs: List[tuple], indent: int = 2):
+    pad = " " * indent
+    labels = ["Field", "Value"]
+    key_w = max(display_width(k) for k, _ in pairs)
+    val_w = max(display_width(v) for _, v in pairs)
+    widths = {"Field": key_w, "Value": val_w}
+    widths = _fit_widths(widths, labels, indent)
+    key_w = widths["Field"]
+    val_w = widths["Value"]
+    header = pad + BOLD + ljust_cjk("Field", key_w) + f" {DIM}│{RESET}{BOLD} " + ljust_cjk("Value", val_w) + RESET
+    sep = pad + DIM + "─" * key_w + "─┼─" + "─" * val_w + RESET
+    print(header)
+    print(sep)
+    for k, v in pairs:
+        wrapped = wrap_cjk(v, val_w)
+        for li, line in enumerate(wrapped):
+            label = k if li == 0 else ""
+            print(pad + ljust_cjk(label, key_w) + f" {DIM}│{RESET} " + ljust_cjk(line, val_w))
+
+
+def _resolve_supplier_name(supplier_id: str) -> str:
+    try:
+        supplier = api_get(f"/api/1.1/obj/entity_supplier/{supplier_id}")
+        sv = supplier.get("response", supplier)
+        prime_id = sv.get("prime_entity")
+        if prime_id:
+            prime = api_get(f"/api/1.1/obj/entity:prime/{prime_id}")
+            pv = prime.get("response", prime)
+            return pv.get("entity_name", supplier_id)
+    except Exception:
+        pass
+    return supplier_id
+
+
+def _resolve_supply_name(supply_id: str, lang: str) -> str:
+    try:
+        supply = api_get(f"/api/1.1/obj/supply_all/{supply_id}")
+        sv = supply.get("response", supply)
+        return sv.get("supply_product_name", supply_id)
+    except Exception:
+        return supply_id
+
+
+def cmd_view_more(args):
     global _last_products, _last_lang
     if not _last_products:
         print("No product list available. Run 'product <code>' first.", file=sys.stderr)
         return
     if not args:
-        print("Usage: select <#>", file=sys.stderr)
+        print("Usage: view <#>", file=sys.stderr)
         return
 
     try:
@@ -255,23 +325,143 @@ def cmd_select(args):
     lang = _last_lang
 
     name = _format_value("product-name-new2", product.get("product-name-new2"), lang)
-    cur = product.get("default_marking_currency", "")
-    price = product.get("corporate_price", "-")
     pid = product.get("tkeg_product_id (New)", "-")
     stype = _format_value("service_type", product.get("service_type"), lang)
+    main = _format_value("main_product", product.get("main_product"), lang)
+    cur = product.get("default_marking_currency", "")
+    price = product.get("corporate_price", "-")
     applicable = _format_value("full-applicable-jurisdictions", product.get("full-applicable-jurisdictions"), lang)
 
-    print(f"\n  === Product #{idx}: {name} ===")
-    print(f"  Price                  {cur} {price}")
-    print(f"  Service Type           {stype}")
-    print(f"  Product ID             {pid}")
-    print(f"  Applicable             {applicable}")
-
     supply_id = product.get("supply_info")
-    if supply_id:
-        _fetch_supply_detail(supply_id, lang)
-    else:
+    _reset_dots()
+    if not supply_id:
+        print(f"\n{_dot(f'#{idx}: {name}')}")
+        info = [
+            ("Product ID", pid), ("Service Type", stype), ("Main Product", main),
+            ("Price", f"{cur} {price}"), ("Applicable", applicable),
+        ]
+        _print_kv_table(info)
         print("\n  No supply linked to this product.")
+        return
+
+    print("  Fetching details...")
+    supply = api_get(f"/api/1.1/obj/supply_all/{supply_id}")
+    s = supply.get("response", supply)
+
+    s_cur = s.get("marking_currency", "")
+    cost = s.get("cost_price", "-")
+    est_days = s.get("estimated-business-days", "-")
+    est_gov = s.get("estimated-government-fee", "-")
+    vat = s.get("vat", "-")
+    memo = _format_value("public_memo_new2", s.get("public_memo_new2"), lang)
+    internal = strip_markup(s.get("internal_memo", "") or "")
+    present = "Yes" if s.get("applicant must be present") else "No"
+
+    print(f"\n\n{_dot(f'#{idx}: {name}')}")
+    info = [
+        ("Product ID", pid), ("Service Type", stype), ("Main Product", main),
+        ("Price", f"{cur} {price}"), ("Applicable", applicable),
+        ("Cost Price", f"{s_cur} {cost}"),
+        ("Est. Business Days", str(est_days)), ("Est. Government Fee", str(est_gov)),
+        ("VAT", str(vat)), ("Applicant Present", present),
+    ]
+    _print_kv_table(info)
+    print()
+
+    if (memo and memo != "-") or internal:
+        print(f"\n{_dot('Memos')}")
+        memo_row = {
+            "Public Memo": memo if memo and memo != "-" else "-",
+            "Internal Memo": internal or "-",
+        }
+        _print_detail_table([memo_row], ["Public Memo", "Internal Memo"])
+        print()
+
+    included_ids = s.get("included services (new)", [])
+    if included_ids:
+        print(f"\n{_dot(f'Included Services ({len(included_ids)})')}")
+        inc_rows = []
+        for sid in included_ids:
+            try:
+                svc = api_get(f"/api/1.1/obj/supply_included_service/{sid}")
+                sv = svc.get("response", svc)
+                svc_name = _format_value("service-name_new2", sv.get("service-name_new2"), lang)
+                qty = sv.get("quantity-included", "-")
+                excluded = sv.get("not-included", False)
+                inc_rows.append({
+                    "Service": svc_name,
+                    "Qty": str(qty),
+                    "Status": "EXCLUDED" if excluded else "Included",
+                })
+            except Exception:
+                inc_rows.append({"Service": sid, "Qty": "-", "Status": "-"})
+        _print_detail_table(inc_rows, ["Service", "Qty", "Status"])
+        print()
+
+    doc_ids = s.get("data: document requirements", [])
+    if doc_ids:
+        print(f"\n{_dot(f'Required Documents ({len(doc_ids)})')}")
+        docs_by_entity = {}
+        doc_order = []
+        for did in doc_ids:
+            try:
+                doc = api_get(f"/api/1.1/obj/supply_requirement_document/{did}")
+                d = doc.get("response", doc)
+                entity = d.get("applicable_entity", "-")
+                if entity not in docs_by_entity:
+                    doc_order.append(entity)
+                docs_by_entity.setdefault(entity, []).append(d)
+            except Exception:
+                if "Unknown" not in docs_by_entity:
+                    doc_order.append("Unknown")
+                docs_by_entity.setdefault("Unknown", []).append({"_raw_id": did})
+        doc_rows = []
+        span_rows = []
+        for entity in doc_order:
+            span_rows.append({"_before": len(doc_rows), "_text": f"[{entity}]"})
+            for d in docs_by_entity[entity]:
+                if "_raw_id" in d:
+                    doc_rows.append({"Type": d["_raw_id"], "Format": "-", "Process": "-", "Memo": "-"})
+                else:
+                    doc_rows.append({
+                        "Type": d.get("document_type", "-"),
+                        "Format": d.get("document_format", "-") or "-",
+                        "Process": d.get("document_process", "-") or "-",
+                        "Memo": _format_value("memo-NEW2", d.get("memo-NEW2"), lang),
+                    })
+        _print_detail_table(doc_rows, ["Type", "Format", "Process", "Memo"], span_rows=span_rows)
+        print()
+
+    req_ids = s.get("data: requirements", [])
+    if req_ids:
+        print(f"\n{_dot(f'Requirements ({len(req_ids)})')}")
+        req_rows = []
+        for rid in req_ids:
+            try:
+                req = api_get(f"/api/1.1/obj/supply_requirement/{rid}")
+                r = req.get("response", req)
+                req_stype = SERVICE_TYPE_TO_CODE.get(r.get("service_type", ""), r.get("service_type", "-") or "-")
+                supplier_id = r.get("solution_specify_supplier")
+                supplier_name = _resolve_supplier_name(supplier_id) if supplier_id else "-"
+                supply_ids = r.get("solution_specify_supply") or []
+                if isinstance(supply_ids, str):
+                    supply_ids = [supply_ids]
+                product_names = ", ".join(_resolve_supply_name(sid, lang) for sid in supply_ids) if supply_ids else "-"
+                has_sol = "Yes" if r.get("has solution") else "No"
+                incl = r.get("item_included", 0)
+                sol_text = f"{has_sol} ({incl})" if incl else has_sol
+                req_rows.append({
+                    "Name": _format_value("requirement_name-NEW2", r.get("requirement_name-NEW2"), lang),
+                    "Condition": _format_value("condition-NEW2", r.get("condition-NEW2"), lang),
+                    "Type": req_stype,
+                    "Supplier": supplier_name,
+                    "Product": product_names,
+                    "Solution": sol_text,
+                })
+            except Exception:
+                req_rows.append({"Name": rid, "Condition": "-", "Type": "-", "Supplier": "-", "Product": "-", "Solution": "-"})
+        _print_detail_table(req_rows, ["Name", "Condition", "Type", "Supplier", "Product", "Solution"])
+        print()
 
 
 def cmd_product(args):

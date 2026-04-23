@@ -63,21 +63,24 @@ def cmd_logout(args):
 
 
 def cmd_status(args):
+    B = "\033[1m"
+    D = "\033[2m"
+    R = "\033[0m"
     creds = load_credentials()
     if not creds:
         print("Not logged in. Run: tkegexpat login")
         return
 
-    print(f"Account: {creds['email']}")
+    print(f"  {D}Account{R}  {creds['email']}")
 
     result = get_token()
     if result:
         remaining = result.get("expires_in", result["expires_at"] - int(time.time()))
         hours = remaining // 3600
         minutes = (remaining % 3600) // 60
-        print(f"Token:   valid ({result['source']}) — {hours}h {minutes}m remaining")
+        print(f"  {D}Token{R}    {B}valid{R} ({result['source']}) {D}—{R} {hours}h {minutes}m remaining")
     else:
-        print("Token:   expired or unavailable (will refresh on next request)")
+        print(f"  {D}Token{R}    expired or unavailable (will refresh on next request)")
 
 
 def cmd_update(args):
@@ -99,29 +102,35 @@ def cmd_product(args):
     _product(args)
 
 
-def cmd_select(args):
-    from .product import cmd_select as _select
-    _select(args)
+def cmd_view(args):
+    from .product import cmd_view_more as _view
+    _view(args)
 
 
 def cmd_help(args):
     from . import __version__
-    print(
-        f"""tkegexpat — TKEG Expat CLI v{__version__}
-
-Commands:
-  login          Log in with email and password
-  logout         Clear saved credentials and token
-  status         Show current auth status
-  product <code> Query products (e.g. usci = US + company-incorporation)
-  select <#>     View product details (supply, documents, requirements)
-  update         Update CLI to the latest version
-  help           Show this help message
-
-Product code format: <country><service>
-  Country: 2-letter ISO code (us, gb, hk, sg, ie, ...)
-  Service: ci ba ac co rm ra nd cs cd tr sl ar ca af os"""
-    )
+    B = "\033[1m"
+    D = "\033[2m"
+    R = "\033[0m"
+    print(f"\n  {B}tkegexpat{R} {D}v{__version__}{R}\n")
+    cmds = [
+        ("login", "Log in with email and password"),
+        ("logout", "Clear saved credentials and token"),
+        ("status", "Show current auth status"),
+        ("product <code>", "Query products (e.g. usci = US + company-incorporation)"),
+        ("view <#>", "View product details (supply, documents, requirements)"),
+        ("update", "Update CLI to the latest version"),
+        ("help", "Show this help message"),
+    ]
+    cw = max(len(c) for c, _ in cmds)
+    dw = max(len(d) for _, d in cmds)
+    print(f"  {B}{'Command'.ljust(cw)} {D}│{R}{B} {'Description'.ljust(dw)}{R}")
+    print(f"  {D}{'─' * cw}─┼─{'─' * dw}{R}")
+    for c, d in cmds:
+        print(f"  {c.ljust(cw)} {D}│{R} {d}")
+    print(f"\n  {B}Product code format:{R} <country><service>")
+    print(f"  {D}Country:{R} 2-letter ISO code (us, gb, hk, sg, ie, ...)")
+    print(f"  {D}Service:{R} ci ba ac co rm ra nd cs cd tr sl ar ca af os\n")
 
 
 COMMANDS = {
@@ -129,7 +138,7 @@ COMMANDS = {
     "logout": cmd_logout,
     "status": cmd_status,
     "product": cmd_product,
-    "select": cmd_select,
+    "view": cmd_view,
     "update": cmd_update,
     "help": cmd_help,
 }
@@ -148,10 +157,63 @@ def _run_command(command: str, args: list, interactive: bool = False):
     handler(args)
 
 
+_B = "\033[1m"
+_D = "\033[2m"
+_R = "\033[0m"
+
+_LOGO_RAW = """\
+                     ████████████████████████████████████████ █
+                   ██                                         ███
+                 █                                            █████
+                ████████████████   ██████████████████████████ ███████
+                █   ███████████████                           ███████
+                █     █ ███████████████                       ███████
+                █     █     ███████████████                   ███████
+                █     █         ██████████████                ███████
+                █     █             ██████████████            ███████
+                █     █                 ██████████████        ███████
+                █     █                     ██████████████    ███████
+                █     █                         █████████████ ███████
+                ███████ ██████████████████████     ██████████████████
+                      █                                ██████████████
+                      █                                     █████████
+                █████████████████████████████   █████████████ ███████
+                █     █                      ██████████████   ███████
+                █     █                  ██████████████       ███████
+                █     █               █████████████           ███████
+                █     █           ██████████████              ███████
+                █     █       ██████████████                  ███████
+                █     █    ██████████████                     ███████
+                █     █ █████████████                         ██████
+                █   █████████████                             ███████
+                ███████████████ █████████████████████████████████████
+                  ████████                                        █
+                    ██                                          ██
+                     ███████████████████████████████████████████"""
+_LOGO_LINES = [line.rstrip() for line in _LOGO_RAW.split("\n")]
+_min_indent = min(len(line) - len(line.lstrip()) for line in _LOGO_LINES if line.strip())
+_LOGO_LINES = [line[_min_indent:] for line in _LOGO_LINES]
+_LOGO_VISIBLE_WIDTH = max(len(line) for line in _LOGO_LINES)
+
+
 def _interactive():
     from . import __version__
-    print(f"tkegexpat v{__version__} — interactive mode")
-    print("Type 'help' for commands, 'exit' to quit.\n")
+    mid = len(_LOGO_LINES) // 2
+    text_lines = {
+        mid - 1: f"{_B}TKEG EXPAT{_R}",
+        mid:     f"{_D}v{__version__}{_R}",
+        mid + 2: f"{_D}Type 'help' for commands{_R}",
+        mid + 3: f"{_D}'exit' to quit{_R}",
+    }
+    print()
+    for i, logo_line in enumerate(_LOGO_LINES):
+        padded = logo_line.ljust(_LOGO_VISIBLE_WIDTH)
+        right = text_lines.get(i, "")
+        if right:
+            print(f"{padded}  {right}")
+        else:
+            print(padded)
+    print()
     while True:
         try:
             line = input("tkegexpat> ").strip()
