@@ -161,8 +161,8 @@ def _fetch_supply_detail(supply_id: str, lang: str):
     est_days = s.get("estimated-business-days", "-")
     est_gov = s.get("estimated-government-fee", "-")
     vat = s.get("vat", "-")
-    quickview = _format_value("quick_view_new2", s.get("quick_view_new2"), lang)
     memo = _format_value("public_memo_new2", s.get("public_memo_new2"), lang)
+    internal = s.get("internal_memo", "")
     present = "Yes" if s.get("applicant must be present") else "No"
 
     print(f"\n  === Supply: {name} ===")
@@ -171,13 +171,13 @@ def _fetch_supply_detail(supply_id: str, lang: str):
     print(f"  Est. Government Fee    {est_gov}")
     print(f"  VAT                    {vat}")
     print(f"  Applicant Present      {present}")
-    if quickview and quickview != "-":
-        print(f"\n  Quick View:")
-        for line in textwrap.wrap(quickview, 70):
-            print(f"    {line}")
     if memo and memo != "-":
         print(f"\n  Memo:")
         for line in textwrap.wrap(memo, 70):
+            print(f"    {line}")
+    if internal:
+        print(f"\n  Internal Memo:")
+        for line in textwrap.wrap(str(internal), 70):
             print(f"    {line}")
 
     included_ids = s.get("included services (new)", [])
