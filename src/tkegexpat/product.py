@@ -25,30 +25,29 @@ SERVICE_TYPES = {
     "os": "other-services",
 }
 
-DISPLAY_FIELDS = [
-    ("product-name-new2", "Product Name"),
-    ("service_type", "Service Type"),
+TABLE_COLUMNS = [
+    ("product-name-new2", "Name"),
+    ("service_type", "Type"),
     ("corporate_price", "Price"),
-    ("default_marking_currency", "Currency"),
-    ("main_product", "Main Product"),
-    ("tkeg_product_id (New)", "Product ID"),
-    ("belonging_jurisdiction", "Belonging Jurisdiction"),
-    ("full-applicable-jurisdictions", "Applicable Jurisdictions"),
+    ("default_marking_currency", "Cur"),
+    ("main_product", "Main"),
+    ("tkeg_product_id (New)", "PID"),
+    ("belonging_jurisdiction", "Jurisdiction"),
+    ("full-applicable-jurisdictions", "Applicable"),
     ("supply_info", "Supply"),
-    ("Created Date", "Created"),
-    ("Modified Date", "Modified"),
 ]
 
 HIDDEN_FIELDS = {
-    "Created By",
+    "Created By", "Created Date", "Modified Date",
     "product_image",
     "TKEG Expat Ireland Stripe Price ID",
     "TKEG Expat US Stripe Price ID",
-    "url_name",
-    "Slug",
-    "case-study-projects-items",
-    "_id",
+    "url_name", "Slug",
+    "case-study-projects-items", "_id",
 }
+
+JURISDICTION_FIELDS = {"belonging_jurisdiction", "full-applicable-jurisdictions"}
+SERVICE_TYPE_TO_CODE = {v: k.upper() for k, v in SERVICE_TYPES.items()}
 
 
 def parse_code(code: str):
@@ -70,11 +69,6 @@ def parse_code(code: str):
     return country, service_type
 
 
-JURISDICTION_FIELDS = {"belonging_jurisdiction", "full-applicable-jurisdictions"}
-
-SERVICE_TYPE_TO_CODE = {v: k.upper() for k, v in SERVICE_TYPES.items()}
-
-
 def _format_value(key: str, value, lang: str) -> str:
     if value is None:
         return "-"
@@ -92,60 +86,33 @@ def _format_value(key: str, value, lang: str) -> str:
         return str(len(value))
     if isinstance(value, bool):
         return "Yes" if value else "No"
-    s = str(value)
-    if len(s) > 22 and key in ("Created Date", "Modified Date"):
-        return s[:10]
-    return s
+    return str(value)
 
 
-def _print_cards(products: List[dict], lang: str):
+def _print_table(products: List[dict], lang: str):
     if not products:
         print("No products found.")
         return
 
-    known_keys = {f[0] for f in DISPLAY_FIELDS}
-
-    for i, p in enumerate(products):
-        if i > 0:
-            print()
-        name = _format_value("product-name-new2", p.get("product-name-new2"), lang)
-        price = p.get("corporate_price", "-")
-        currency = p.get("default_marking_currency", "")
-        print(f"  {name}")
-        print(f"  {currency} {price}")
-        print("  " + "-" * 40)
-
-        for field_key, label in DISPLAY_FIELDS:
-            if field_key in ("product-name-new2", "corporate_price", "default_marking_currency"):
-                continue
-            val = _format_value(field_key, p.get(field_key), lang)
-            print(f"  {label:<26} {val}")
-
-        extra = [k for k in p if k not in known_keys and k not in HIDDEN_FIELDS]
-        for k in extra:
-            val = _format_value(k, p.get(k), lang)
-            print(f"  {k:<26} {val}")
-
-
-def _print_summary(products: List[dict], lang: str):
-    if not products:
-        print("No products found.")
-        return
-
-    name_w = max(len(_format_value("product-name-new2", p.get("product-name-new2"), lang)) for p in products)
-    name_w = min(name_w, 45)
-
-    header = f"  {'Product':<{name_w}}  {'Price':>8}  {'Main':>4}  {'Modified':<10}"
-    print(header)
-    print("  " + "-" * len(header.strip()))
-
+    rows = []
     for p in products:
-        name = _format_value("product-name-new2", p.get("product-name-new2"), lang)
-        currency = p.get("default_marking_currency", "")
-        price = f"{currency} {p.get('corporate_price', '-')}"
-        main = "Yes" if p.get("main_product") else ""
-        modified = str(p.get("Modified Date", ""))[:10]
-        print(f"  {name:<{name_w}}  {price:>8}  {main:>4}  {modified:<10}")
+        row = {}
+        for key, label in TABLE_COLUMNS:
+            row[label] = _format_value(key, p.get(key), lang)
+        rows.append(row)
+
+    labels = [label for _, label in TABLE_COLUMNS]
+    widths = {}
+    for label in labels:
+        widths[label] = max(len(label), *(len(r[label]) for r in rows))
+
+    header = "  " + " | ".join(label.ljust(widths[label]) for label in labels)
+    sep = "  " + "-+-".join("-" * widths[label] for label in labels)
+    print(header)
+    print(sep)
+    for r in rows:
+        line = "  " + " | ".join(r[label].ljust(widths[label]) for label in labels)
+        print(line)
 
 
 def cmd_product(args):
@@ -169,4 +136,4 @@ def cmd_product(args):
     ]
     products = api_list("product:all", constraints)
     print(f"Found {len(products)} product(s).\n")
-    _print_cards(products, lang)
+    _print_table(products, lang)
