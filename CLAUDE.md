@@ -15,9 +15,13 @@ A Python CLI (`tkegexpat`) that gives TKEG Expat users authenticated access to t
 ```
 src/tkegexpat/
 ├── __init__.py    — version string (__version__)
-├── cli.py         — entry point + command dispatch (login, logout, status, update, help)
+├── cli.py         — entry point, command dispatch, auth gate
 ├── auth.py        — token fetch, cache check, auto-refresh logic
-└── config.py      — credentials & token file I/O (~/.config/tkegexpat/)
+├── config.py      — credentials, token, settings, cache file paths
+├── api.py         — authenticated API client (all calls require token)
+├── countries.py   — country cache: sync from API, local storage, lookup by abbreviation
+├── product.py     — product command: parse code, query, display table
+└── i18n.py        — NEW2 multilingual field extraction via regex
 ```
 
 - `pyproject.toml` / `setup.cfg` / `setup.py` — packaging (all three needed for pip 21.x compat)
@@ -46,14 +50,22 @@ tkegexpat update
 #   export PATH="$HOME/Library/Python/3.9/bin:$PATH"
 ```
 
+## Auth gate
+
+Every command except `login`, `logout`, `help`, `update` requires auth. The `_ensure_auth()` function in `cli.py` enforces this before any handler runs. It also triggers `countries.sync()` so the country cache is always fresh.
+
+All API calls go through `api.py` which calls `require_token()` — if the token is expired, it auto-refreshes using saved credentials. No token = error with login prompt.
+
 ## Adding new commands
 
 1. Write the handler function in `cli.py` (or a new module if complex)
 2. Add it to the `COMMANDS` dict in `cli.py`
 3. Add it to the help text in `cmd_help()`
-4. If the command needs auth, call `require_token()` from `auth.py` — it returns the bearer token string or raises with a login prompt
-5. Bump `__version__` in `__init__.py`
-6. Update this file if the command adds a new capability area
+4. Auth is enforced automatically unless the command is in `AUTH_EXEMPT`
+5. Use `api.api_get()` or `api.api_list()` for API calls — they handle auth
+6. Use `countries.lookup(abbr)` to resolve country codes to Bubble IDs
+7. Bump `__version__` in `__init__.py`
+8. Update this file if the command adds a new capability area
 
 ## Dev workflow
 
