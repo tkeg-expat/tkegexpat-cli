@@ -30,41 +30,41 @@ Wait until you see "Successfully installed". This only needs to be done once.
 
 ### Step 2 — Log in
 
-Type this and press **Enter**:
+Type `tkegexpat` and press **Enter** to open the app. You'll see the TKEG Expat logo and a prompt:
 
 ```
-tkegexpat login
+tkegexpat>
 ```
 
-It will ask for your **email** and **password** (the same ones you use on tkegexpat.com). When you type your password, nothing will appear on screen — this is normal. Just type it and press Enter.
+Type `login` and press Enter. It will ask for your **email** and **password** (the same ones you use on tkegexpat.com). When you type your password, nothing will appear on screen — this is normal. Just type it and press Enter.
 
 You only need to log in once. The tool remembers your credentials.
 
 ### Step 3 — You're ready
 
-Type `tkegexpat` by itself to enter interactive mode, or type commands directly (see below).
+You're now inside the TKEG Expat environment. Just type commands at the `tkegexpat>` prompt — no need to type `tkegexpat` before each one.
+
+Type `exit` when you're done.
 
 ---
 
 ## Commands
 
-### `tkegexpat`
+All commands below are typed at the `tkegexpat>` prompt. You do **not** need to type `tkegexpat` before each command.
 
-Opens interactive mode. You'll see the TKEG Expat logo and a prompt (`tkegexpat>`). Type commands without the `tkegexpat` prefix. Type `exit` to leave.
-
-### `tkegexpat login`
+### `login`
 
 Log in with your email and password. Required before using any other command.
 
-### `tkegexpat logout`
+### `logout`
 
 Log out and clear your saved credentials.
 
-### `tkegexpat status`
+### `status`
 
 Check whether you're logged in and if your session is still valid.
 
-### `tkegexpat product <code>`
+### `product <code>`
 
 Look up products. The code is made of two parts:
 
@@ -74,7 +74,7 @@ Look up products. The code is made of two parts:
 **Example:** To find company incorporation products in the US:
 
 ```
-tkegexpat product usci
+tkegexpat> product usci
 ```
 
 This shows a table of matching products with their names, prices, and IDs.
@@ -99,13 +99,13 @@ This shows a table of matching products with their names, prices, and IDs.
 | af | Administration Fee |
 | os | Other Services |
 
-### `tkegexpat view <number>`
+### `view <number>`
 
 After running `product`, each result has a number (#). Use `view` with that number to see full details:
 
 ```
-tkegexpat product usci
-tkegexpat view 1
+tkegexpat> product usci
+tkegexpat> view 1
 ```
 
 This shows:
@@ -115,13 +115,17 @@ This shows:
 - Required documents (grouped by entity type, with format, process, and notes)
 - Requirements (conditions, supplier, related products)
 
-### `tkegexpat update`
+### `update`
 
 Update the tool to the latest version. Run this whenever a new version is announced.
 
-### `tkegexpat help`
+### `help`
 
 Show a quick reference of all commands.
+
+### `exit`
+
+Close the app.
 
 ---
 
@@ -150,13 +154,13 @@ Show a quick reference of all commands.
 You need to add the install location to your PATH. See the note in Step 1 above.
 
 **"Not logged in"**
-Run `tkegexpat login` first.
+Type `login` first.
 
 **Screen looks garbled or has weird characters**
 Make sure you're using a modern terminal (the default Terminal app on Mac works fine). Some very old terminal programs don't support the formatting this tool uses.
 
 **Want to update to the latest version**
-Run `tkegexpat update`.
+Type `update`.
 
 **Forgot your password**
-Reset it on tkegexpat.com, then run `tkegexpat login` again with the new password.
+Reset it on tkegexpat.com, then type `login` again with the new password.
