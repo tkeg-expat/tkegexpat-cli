@@ -85,3 +85,10 @@ def get_all() -> dict:
     if _cache is None:
         _cache = _load_local() or _load_bundled()
     return _cache.get("countries", {})
+
+
+def id_to_abbr(bubble_id: str) -> str:
+    for abbr, c in get_all().items():
+        if c["_id"] == bubble_id:
+            return abbr
+    return bubble_id

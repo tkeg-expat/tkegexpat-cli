@@ -4,7 +4,7 @@ import sys
 from typing import List
 
 from .api import api_list
-from .countries import lookup as country_lookup
+from .countries import id_to_abbr, lookup as country_lookup
 from .i18n import extract_lang
 
 SERVICE_TYPES = {
@@ -32,7 +32,7 @@ DISPLAY_FIELDS = [
     ("default_marking_currency", "Currency"),
     ("main_product", "Main Product"),
     ("tkeg_product_id (New)", "Product ID"),
-    ("belonging_jurisdiction", "Jurisdiction"),
+    ("belonging_jurisdiction", "Belonging Jurisdiction"),
     ("full-applicable-jurisdictions", "Applicable Jurisdictions"),
     ("supply_info", "Supply"),
     ("Created Date", "Created"),
@@ -70,9 +70,16 @@ def parse_code(code: str):
     return country, service_type
 
 
+JURISDICTION_FIELDS = {"belonging_jurisdiction", "full-applicable-jurisdictions"}
+
+
 def _format_value(key: str, value, lang: str) -> str:
     if value is None:
         return "-"
+    if key in JURISDICTION_FIELDS:
+        if isinstance(value, list):
+            return ", ".join(id_to_abbr(v) for v in value)
+        return id_to_abbr(str(value))
     if key.lower().endswith("new2") or key.lower().endswith("-new2"):
         extracted = extract_lang(str(value), lang)
         if extracted:
