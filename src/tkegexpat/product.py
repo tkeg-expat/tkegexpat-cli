@@ -169,15 +169,4 @@ def cmd_product(args):
     ]
     products = api_list("product:all", constraints)
     print(f"Found {len(products)} product(s).\n")
-
-    if len(products) == 1:
-        _print_cards(products, lang)
-    elif len(products) <= 5:
-        _print_summary(products, lang)
-        print(f"\n  Showing summary. Use 'product {args[0]} -v' for full details.")
-    else:
-        _print_summary(products, lang)
-
-    if len(products) > 1 and "-v" in args:
-        print()
-        _print_cards(products, lang)
+    _print_cards(products, lang)
