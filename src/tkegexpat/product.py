@@ -28,11 +28,9 @@ SERVICE_TYPES = {
 TABLE_COLUMNS = [
     ("product-name-new2", "Name"),
     ("service_type", "Type"),
-    ("corporate_price", "Price"),
-    ("default_marking_currency", "Cur"),
+    ("_price_display", "Price"),
     ("main_product", "Main"),
     ("tkeg_product_id (New)", "PID"),
-    ("belonging_jurisdiction", "Jurisdiction"),
     ("full-applicable-jurisdictions", "Applicable"),
 ]
 
@@ -43,7 +41,8 @@ HIDDEN_FIELDS = {
     "TKEG Expat US Stripe Price ID",
     "url_name", "Slug",
     "case-study-projects-items", "_id",
-    "supply_info",
+    "supply_info", "belonging_jurisdiction",
+    "corporate_price", "default_marking_currency",
 }
 
 JURISDICTION_FIELDS = {"belonging_jurisdiction", "full-applicable-jurisdictions"}
@@ -84,6 +83,8 @@ def _format_value(key: str, value, lang: str) -> str:
             return extracted
     if isinstance(value, list):
         return str(len(value))
+    if key == "main_product":
+        return "Yes" if value else "No"
     if isinstance(value, bool):
         return "Yes" if value else "No"
     return str(value)
@@ -98,7 +99,12 @@ def _print_table(products: List[dict], lang: str):
     for p in products:
         row = {}
         for key, label in TABLE_COLUMNS:
-            row[label] = _format_value(key, p.get(key), lang)
+            if key == "_price_display":
+                cur = p.get("default_marking_currency", "")
+                price = p.get("corporate_price", "-")
+                row[label] = f"{cur} {price}"
+            else:
+                row[label] = _format_value(key, p.get(key), lang)
         rows.append(row)
 
     labels = [label for _, label in TABLE_COLUMNS]
