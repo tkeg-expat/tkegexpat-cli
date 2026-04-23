@@ -72,10 +72,14 @@ def parse_code(code: str):
 
 JURISDICTION_FIELDS = {"belonging_jurisdiction", "full-applicable-jurisdictions"}
 
+SERVICE_TYPE_TO_CODE = {v: k.upper() for k, v in SERVICE_TYPES.items()}
+
 
 def _format_value(key: str, value, lang: str) -> str:
     if value is None:
         return "-"
+    if key == "service_type" and isinstance(value, str):
+        return SERVICE_TYPE_TO_CODE.get(value, value)
     if key in JURISDICTION_FIELDS:
         if isinstance(value, list):
             return ", ".join(id_to_abbr(v) for v in value)
