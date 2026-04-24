@@ -82,6 +82,8 @@ def _reset_dots():
 
 _last_products = []
 _last_lang = "en_us"
+_last_requirements = []
+_last_view_product = None
 
 
 def _term_width() -> int:
@@ -303,7 +305,9 @@ def _resolve_supply_name(supply_id: str, lang: str) -> str:
 
 
 def cmd_view_more(args):
-    global _last_products, _last_lang
+    global _last_products, _last_lang, _last_requirements, _last_view_product
+    _last_requirements = []
+    _last_view_product = None
     if not _last_products:
         print("No product list available. Run 'product <code>' first.", file=sys.stderr)
         return
@@ -322,6 +326,7 @@ def cmd_view_more(args):
         return
 
     product = _last_products[idx - 1]
+    _last_view_product = product
     lang = _last_lang
 
     name = _format_value("product-name-new2", product.get("product-name-new2"), lang)
@@ -370,11 +375,12 @@ def cmd_view_more(args):
 
     if (memo and memo != "-") or internal:
         print(f"\n{_dot('Memos')}")
-        memo_row = {
-            "Public Memo": memo if memo and memo != "-" else "-",
-            "Internal Memo": internal or "-",
-        }
-        _print_detail_table([memo_row], ["Public Memo", "Internal Memo"])
+        memo_pairs = []
+        if memo and memo != "-":
+            memo_pairs.append(("Public", memo))
+        if internal:
+            memo_pairs.append(("Internal", internal))
+        _print_kv_table(memo_pairs)
         print()
 
     included_ids = s.get("included services (new)", [])
@@ -423,10 +429,13 @@ def cmd_view_more(args):
                 if "_raw_id" in d:
                     doc_rows.append({"Type": d["_raw_id"], "Format": "-", "Process": "-", "Memo": "-"})
                 else:
+                    process = d.get("document_process", "-") or "-"
+                    if process == "N/A":
+                        process = "-"
                     doc_rows.append({
                         "Type": d.get("document_type", "-"),
                         "Format": d.get("document_format", "-") or "-",
-                        "Process": d.get("document_process", "-") or "-",
+                        "Process": process,
                         "Memo": _format_value("memo-NEW2", d.get("memo-NEW2"), lang),
                     })
         _print_detail_table(doc_rows, ["Type", "Format", "Process", "Memo"], span_rows=span_rows)
@@ -436,10 +445,11 @@ def cmd_view_more(args):
     if req_ids:
         print(f"\n{_dot(f'Requirements ({len(req_ids)})')}")
         req_rows = []
-        for rid in req_ids:
+        for i, rid in enumerate(req_ids, 1):
             try:
                 req = api_get(f"/api/1.1/obj/supply_requirement/{rid}")
                 r = req.get("response", req)
+                _last_requirements.append(r)
                 req_stype = SERVICE_TYPE_TO_CODE.get(r.get("service_type", ""), r.get("service_type", "-") or "-")
                 supplier_id = r.get("solution_specify_supplier")
                 supplier_name = _resolve_supplier_name(supplier_id) if supplier_id else "-"
@@ -451,6 +461,7 @@ def cmd_view_more(args):
                 incl = r.get("item_included", 0)
                 sol_text = f"{has_sol} ({incl})" if incl else has_sol
                 req_rows.append({
+                    "#": str(i),
                     "Name": _format_value("requirement_name-NEW2", r.get("requirement_name-NEW2"), lang),
                     "Condition": _format_value("condition-NEW2", r.get("condition-NEW2"), lang),
                     "Type": req_stype,
@@ -459,13 +470,129 @@ def cmd_view_more(args):
                     "Solution": sol_text,
                 })
             except Exception:
-                req_rows.append({"Name": rid, "Condition": "-", "Type": "-", "Supplier": "-", "Product": "-", "Solution": "-"})
-        _print_detail_table(req_rows, ["Name", "Condition", "Type", "Supplier", "Product", "Solution"])
+                _last_requirements.append({})
+                req_rows.append({"#": str(i), "Name": rid, "Condition": "-", "Type": "-", "Supplier": "-", "Product": "-", "Solution": "-"})
+        _print_detail_table(req_rows, ["#", "Name", "Condition", "Type", "Supplier", "Product", "Solution"])
+        if any(r.get("has solution") for r in _last_requirements):
+            print(f"\n  {DIM}Resolve a requirement: resolve-requirement <#>{RESET}")
         print()
 
 
+def _select_jurisdiction(product: dict) -> str | None:
+    jids = product.get("full-applicable-jurisdictions") or []
+    if not jids:
+        return None
+    if len(jids) == 1:
+        return jids[0]
+    print(f"\n  Product applies to multiple jurisdictions — select one:")
+    for i, jid in enumerate(jids, 1):
+        print(f"    {i}. {id_to_abbr(jid)}")
+    try:
+        choice = input("  Choice: ").strip()
+        ci = int(choice)
+        if ci < 1 or ci > len(jids):
+            print("Invalid choice.", file=sys.stderr)
+            return False
+        return jids[ci - 1]
+    except (ValueError, EOFError, KeyboardInterrupt):
+        print("\n  Cancelled.", file=sys.stderr)
+        return False
+
+
+def cmd_resolve_requirement(args):
+    global _last_products, _last_lang, _last_requirements
+    if not _last_requirements:
+        print("No requirements available. Run 'view <#>' on a product first.", file=sys.stderr)
+        return
+    if not args:
+        print("Usage: resolve-requirement <#>", file=sys.stderr)
+        return
+
+    try:
+        idx = int(args[0])
+    except ValueError:
+        print(f"Invalid number: {args[0]}", file=sys.stderr)
+        return
+
+    if idx < 1 or idx > len(_last_requirements):
+        print(f"Invalid index. Choose 1-{len(_last_requirements)}.", file=sys.stderr)
+        return
+
+    lang = _last_lang
+    r = _last_requirements[idx - 1]
+    req_name = _format_value("requirement_name-NEW2", r.get("requirement_name-NEW2"), lang)
+    has_sol = r.get("has solution", False)
+
+    if not has_sol:
+        print(f"\n  Requirement #{idx}: {req_name}")
+        print(f"  No TKEG solution available — client must resolve this requirement.")
+        return
+
+    jurisdiction = _select_jurisdiction(_last_view_product) if _last_view_product else None
+    if jurisdiction is False:
+        return
+
+    supply_ids = r.get("solution_specify_supply") or []
+    if isinstance(supply_ids, str):
+        supply_ids = [supply_ids]
+    supplier_id = r.get("solution_specify_supplier")
+    stype = r.get("service_type")
+
+    if not supply_ids and supplier_id:
+        sup_constraints = [
+            {"key": "supplier_entity", "constraint_type": "equals", "value": supplier_id},
+        ]
+        if stype:
+            sup_constraints.append({"key": "service_type", "constraint_type": "equals", "value": stype})
+        if jurisdiction:
+            sup_constraints.append({"key": "belonging_jurisdiction", "constraint_type": "equals", "value": jurisdiction})
+        supplies = api_list("supply_all", sup_constraints)
+        supply_ids = [s["_id"] for s in supplies]
+
+    print(f"  Resolving requirement #{idx}: {req_name} ...")
+
+    constraints = []
+    if supply_ids:
+        if len(supply_ids) == 1:
+            constraints.append({"key": "supply_info", "constraint_type": "equals", "value": supply_ids[0]})
+        else:
+            constraints.append({"key": "supply_info", "constraint_type": "in", "value": supply_ids})
+    if stype:
+        constraints.append({"key": "service_type", "constraint_type": "equals", "value": stype})
+    if jurisdiction:
+        constraints.append({"key": "full-applicable-jurisdictions", "constraint_type": "contains", "value": jurisdiction})
+
+    if not constraints:
+        print("  No search criteria available for this requirement.")
+        return
+
+    products = api_list("product:all", constraints)
+
+    seen = set()
+    unique = []
+    for p in products:
+        pid = p.get("_id")
+        if pid not in seen:
+            seen.add(pid)
+            unique.append(p)
+    products = unique
+
+    if not products:
+        print(f"\n  No products found for this requirement.")
+        return
+
+    _last_products = products
+    _last_lang = lang
+    _last_requirements = []
+
+    print(f"  Found {len(products)} product(s) resolving this requirement.\n")
+    _print_table(products, lang)
+
+
 def cmd_product(args):
-    global _last_products, _last_lang
+    global _last_products, _last_lang, _last_requirements, _last_view_product
+    _last_requirements = []
+    _last_view_product = None
     if not args:
         print("Usage: product <code>", file=sys.stderr)
         print("  e.g. product usci  (US + company-incorporation)", file=sys.stderr)

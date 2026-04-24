@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import getpass
+import re
 import subprocess
 import sys
 import time
+import urllib.request
 
 from .auth import fetch_token, get_token, require_token
 from .config import clear_credentials, load_credentials, save_credentials
@@ -107,6 +109,11 @@ def cmd_view(args):
     _view(args)
 
 
+def cmd_resolve_requirement(args):
+    from .product import cmd_resolve_requirement as _resolve
+    _resolve(args)
+
+
 def cmd_help(args):
     from . import __version__
     B = "\033[1m"
@@ -119,6 +126,7 @@ def cmd_help(args):
         ("status", "Show current auth status"),
         ("product <code>", "Query products (e.g. usci = US + company-incorporation)"),
         ("view <#>", "View product details (supply, documents, requirements)"),
+        ("resolve-requirement <#>", "Show products that resolve a requirement"),
         ("update", "Update CLI to the latest version"),
         ("help", "Show this help message"),
     ]
@@ -139,6 +147,7 @@ COMMANDS = {
     "status": cmd_status,
     "product": cmd_product,
     "view": cmd_view,
+    "resolve-requirement": cmd_resolve_requirement,
     "update": cmd_update,
     "help": cmd_help,
 }
@@ -229,7 +238,36 @@ def _interactive():
         _run_command(command, parts[1:], interactive=True)
 
 
+def _auto_update():
+    from . import __version__
+    try:
+        url = f"https://raw.githubusercontent.com/{REPO}/main/src/tkegexpat/__init__.py"
+        req = urllib.request.Request(url)
+        req.add_header("User-Agent", "tkegexpat-cli")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            content = resp.read().decode()
+        match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
+        if not match:
+            return
+        remote = match.group(1)
+        if remote == __version__:
+            return
+        print(f"  Updating v{__version__} → v{remote} ...")
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--user", "--upgrade",
+             f"git+https://github.com/{REPO}.git"],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            print(f"  Updated. Restart to use v{remote}.")
+        else:
+            print(f"  Update failed.", file=sys.stderr)
+    except Exception:
+        pass
+
+
 def main():
+    _auto_update()
     args = sys.argv[1:]
 
     if not args:
