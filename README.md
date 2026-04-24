@@ -1,6 +1,6 @@
 # TKEG Expat CLI — User Manual
 
-**Version 0.2.0**
+**Version 0.3.0**
 
 A simple tool that lets you look up TKEG Expat products and services from your computer's terminal (the black window where you type commands).
 
@@ -113,11 +113,25 @@ This shows:
 - Memos (public and internal notes)
 - Included services
 - Required documents (grouped by entity type, with format, process, and notes)
-- Requirements (conditions, supplier, related products)
+- Requirements (conditions, supplier, related products, solution status)
+
+### `resolve-requirement <number>`
+
+After running `view`, if a requirement has a solution (Solution = "Yes"), you can drill into it to find the products that resolve it:
+
+```
+tkegexpat> product nlci
+tkegexpat> view 1
+tkegexpat> resolve-requirement 2
+```
+
+This searches for products matching the requirement's supplier, service type, and jurisdiction. If the viewed product applies to multiple jurisdictions, you'll be prompted to select one.
+
+The results appear as a product table — you can then `view` any of them to see full details.
 
 ### `update`
 
-Update the tool to the latest version. Run this whenever a new version is announced.
+Update the tool to the latest version. The tool also checks for updates automatically on startup.
 
 ### `help`
 
