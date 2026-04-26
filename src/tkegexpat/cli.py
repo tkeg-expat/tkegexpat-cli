@@ -14,6 +14,8 @@ REPO = "tkeg-expat/tkegexpat-cli"
 
 AUTH_EXEMPT = {"login", "logout", "help", "update"}
 
+_last_view_context = "product"
+
 
 def _ensure_auth(command: str, interactive: bool = False):
     if command in AUTH_EXEMPT:
@@ -100,12 +102,35 @@ def cmd_update(args):
 
 
 def cmd_product(args):
+    global _last_view_context
     from .product import cmd_product as _product
     _product(args)
+    _last_view_context = "product"
+
+
+def cmd_cit(args):
+    from .cit import cmd_cit as _cit
+    _cit(args)
+
+
+def cmd_vat(args):
+    from .vat import cmd_vat as _vat
+    _vat(args)
+
+
+def cmd_legal_entity(args):
+    global _last_view_context
+    from .legal_entity import cmd_legal_entity as _le
+    result = _le(args)
+    if result:
+        _last_view_context = "legal-entity"
 
 
 def cmd_view(args):
-    from .product import cmd_view_more as _view
+    if _last_view_context == "legal-entity":
+        from .legal_entity import cmd_view_entity as _view
+    else:
+        from .product import cmd_view_more as _view
     _view(args)
 
 
@@ -127,6 +152,9 @@ def cmd_help(args):
         ("product <code>", "Query products (e.g. usci = US + company-incorporation)"),
         ("view <#>", "View product details (supply, documents, requirements)"),
         ("resolve-requirement <#>", "Show products that resolve a requirement"),
+        ("legal-entity <country>", "Legal entity types (e.g. legal-entity us)"),
+        ("cit <country>", "Corporate income tax info (e.g. cit us, cit hk)"),
+        ("vat <country>", "VAT / sales tax rates (e.g. vat gb, vat sg)"),
         ("update", "Update CLI to the latest version"),
         ("help", "Show this help message"),
     ]
@@ -148,6 +176,9 @@ COMMANDS = {
     "product": cmd_product,
     "view": cmd_view,
     "resolve-requirement": cmd_resolve_requirement,
+    "legal-entity": cmd_legal_entity,
+    "cit": cmd_cit,
+    "vat": cmd_vat,
     "update": cmd_update,
     "help": cmd_help,
 }

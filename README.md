@@ -1,8 +1,8 @@
 # TKEG Expat CLI — User Manual
 
-**Version 0.3.0**
+**Version 0.4.0**
 
-A simple tool that lets you look up TKEG Expat products and services from your computer's terminal (the black window where you type commands).
+A simple tool that lets you look up TKEG Expat products, tax data, and legal entity types from your computer's terminal (the black window where you type commands).
 
 ---
 
@@ -101,23 +101,30 @@ This shows a table of matching products with their names, prices, and IDs.
 
 ### `view <number>`
 
-After running `product`, each result has a number (#). Use `view` with that number to see full details:
+After running `product` or `legal-entity`, each result has a number (#). Use `view` with that number to see full details:
 
 ```
 tkegexpat> product usci
 tkegexpat> view 1
 ```
 
-This shows:
+For **products**, this shows:
 - Product and supply information (price, cost, estimated days)
 - Memos (public and internal notes)
 - Included services
 - Required documents (grouped by entity type, with format, process, and notes)
 - Requirements (conditions, supplier, related products, solution status)
 
+For **legal entities**, this shows:
+- Full entity details (liability, ownership, capital market participation)
+- Director, shareholder, and capital requirements
+- Memo and quick view
+
+The `view` command automatically knows which list you queried last.
+
 ### `resolve-requirement <number>`
 
-After running `view`, if a requirement has a solution (Solution = "Yes"), you can drill into it to find the products that resolve it:
+After running `view` on a product, if a requirement has a solution (Solution = "Yes"), you can drill into it to find the products that resolve it:
 
 ```
 tkegexpat> product nlci
@@ -128,6 +135,48 @@ tkegexpat> resolve-requirement 2
 This searches for products matching the requirement's supplier, service type, and jurisdiction. If the viewed product applies to multiple jurisdictions, you'll be prompted to select one.
 
 The results appear as a product table — you can then `view` any of them to see full details.
+
+### `legal-entity <country>`
+
+Look up legal entity types (company structures) available in a country.
+
+```
+tkegexpat> legal-entity us
+```
+
+This shows a table with each entity's abbreviation, full name, limited liability status, and capital market participation.
+
+Use `view <number>` to see full details for any entity in the list.
+
+```
+tkegexpat> legal-entity us
+tkegexpat> view 3
+```
+
+### `cit <country>`
+
+Look up corporate income tax information for a country.
+
+```
+tkegexpat> cit gb
+```
+
+This shows:
+- CIT rate, VAT rate, capital gains tax
+- CIT payment and return due dates
+- Withholding tax rates for residents and non-residents (dividend / interest / royalty)
+- Effective average and marginal tax rates (OECD)
+- All tax feature details in a table
+
+### `vat <country>`
+
+Look up VAT / sales tax rates for a country.
+
+```
+tkegexpat> vat gb
+```
+
+This shows all VAT rate entries with their name, type, rate percentage, active status, and description.
 
 ### `update`
 
