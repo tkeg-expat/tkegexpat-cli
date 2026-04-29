@@ -1,8 +1,8 @@
 # TKEG Expat CLI — User Manual
 
-**Version 0.4.0**
+**Version 0.5.0**
 
-A simple tool that lets you look up TKEG Expat products, tax data, and legal entity types from your computer's terminal (the black window where you type commands).
+A simple tool that lets you look up TKEG Expat products, managed companies, tax data, and legal entity types from your computer's terminal (the black window where you type commands).
 
 ---
 
@@ -44,7 +44,7 @@ You only need to log in once. The tool remembers your credentials.
 
 You're now inside the TKEG Expat environment. Just type commands at the `tkegexpat>` prompt — no need to type `tkegexpat` before each one.
 
-Type `exit` when you're done.
+Type `exit` when you're done. Type `restart` to reload the app (e.g. after an update).
 
 ---
 
@@ -99,9 +99,23 @@ This shows a table of matching products with their names, prices, and IDs.
 | af | Administration Fee |
 | os | Other Services |
 
+### `company <country> [status]`
+
+Look up managed companies by country. Optionally filter by status.
+
+```
+tkegexpat> company us
+tkegexpat> company hk live
+tkegexpat> company gb expired
+```
+
+This shows a table of companies with their name, registration number (SIN), company ID, status, registration date, and tax ID.
+
+Use `view <number>` to see full details for any company in the list.
+
 ### `view <number>`
 
-After running `product` or `legal-entity`, each result has a number (#). Use `view` with that number to see full details:
+After running `product`, `company`, or `legal-entity`, each result has a number (#). Use `view` with that number to see full details:
 
 ```
 tkegexpat> product usci
@@ -115,12 +129,30 @@ For **products**, this shows:
 - Required documents (grouped by entity type, with format, process, and notes)
 - Requirements (conditions, supplier, related products, solution status)
 
+For **companies**, this shows:
+- Company information (ID, status, registration date, tax ID, jurisdiction)
+- Prime entity details (name, type, contact info, address)
+- Additional information (credentials, bank details, etc.)
+- Due dates with linked products
+
 For **legal entities**, this shows:
 - Full entity details (liability, ownership, capital market participation)
 - Director, shareholder, and capital requirements
 - Memo and quick view
 
 The `view` command automatically knows which list you queried last.
+
+### `view-product <number>`
+
+After viewing a company (which shows due dates), use this to see the full product details linked to a due date:
+
+```
+tkegexpat> company gb live
+tkegexpat> view 1
+tkegexpat> view-product 3
+```
+
+This opens the same product detail view as `product` → `view`, showing supply info, documents, requirements, etc.
 
 ### `resolve-requirement <number>`
 
@@ -181,6 +213,10 @@ This shows all VAT rate entries with their name, type, rate percentage, active s
 ### `update`
 
 Update the tool to the latest version. The tool also checks for updates automatically on startup.
+
+### `restart`
+
+Restart the app. Useful after an update to load the new version without closing and reopening your terminal.
 
 ### `help`
 

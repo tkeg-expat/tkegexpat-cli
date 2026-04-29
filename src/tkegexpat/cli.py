@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import getpass
+import os
 import re
 import subprocess
 import sys
@@ -108,6 +109,14 @@ def cmd_product(args):
     _last_view_context = "product"
 
 
+def cmd_company(args):
+    global _last_view_context
+    from .company import cmd_company as _company
+    result = _company(args)
+    if result:
+        _last_view_context = "company"
+
+
 def cmd_cit(args):
     from .cit import cmd_cit as _cit
     _cit(args)
@@ -129,9 +138,18 @@ def cmd_legal_entity(args):
 def cmd_view(args):
     if _last_view_context == "legal-entity":
         from .legal_entity import cmd_view_entity as _view
+    elif _last_view_context == "company":
+        from .company import cmd_view_company as _view
     else:
         from .product import cmd_view_more as _view
     _view(args)
+
+
+def cmd_view_product(args):
+    global _last_view_context
+    from .company import cmd_view_product as _vp
+    _vp(args)
+    _last_view_context = "product"
 
 
 def cmd_resolve_requirement(args):
@@ -150,7 +168,9 @@ def cmd_help(args):
         ("logout", "Clear saved credentials and token"),
         ("status", "Show current auth status"),
         ("product <code>", "Query products (e.g. usci = US + company-incorporation)"),
-        ("view <#>", "View product details (supply, documents, requirements)"),
+        ("company <country> [status]", "Managed companies (e.g. company us, company hk live)"),
+        ("view <#>", "View details for the last listed items"),
+        ("view-product <#>", "View product linked to a due date"),
         ("resolve-requirement <#>", "Show products that resolve a requirement"),
         ("legal-entity <country>", "Legal entity types (e.g. legal-entity us)"),
         ("cit <country>", "Corporate income tax info (e.g. cit us, cit hk)"),
@@ -174,7 +194,9 @@ COMMANDS = {
     "logout": cmd_logout,
     "status": cmd_status,
     "product": cmd_product,
+    "company": cmd_company,
     "view": cmd_view,
+    "view-product": cmd_view_product,
     "resolve-requirement": cmd_resolve_requirement,
     "legal-entity": cmd_legal_entity,
     "cit": cmd_cit,
@@ -266,6 +288,8 @@ def _interactive():
         command = parts[0]
         if command in ("exit", "quit"):
             break
+        if command == "restart":
+            os.execv(sys.executable, [sys.executable] + sys.argv)
         _run_command(command, parts[1:], interactive=True)
 
 
