@@ -1,18 +1,3 @@
 [build-system]
-requires = ["setuptools>=68.0"]
+requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
-
-[project]
-name = "tkegexpat-cli"
-dynamic = ["version"]
-description = "TKEG Expat command-line interface"
-requires-python = ">=3.9"
-
-[project.scripts]
-tkegexpat = "tkegexpat.cli:main"
-
-[tool.setuptools.dynamic]
-version = {attr = "tkegexpat.__version__"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
