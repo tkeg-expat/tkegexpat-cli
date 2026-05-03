@@ -36,7 +36,7 @@ Type `tkegexpat` and press **Enter** to open the app. You'll see the TKEG Expat 
 tkegexpat>
 ```
 
-Type `login` and press Enter. It will ask for your **email** and **password** (the same ones you use on tkegexpat.com). When you type your password, nothing will appear on screen — this is normal. Just type it and press Enter.
+Type `login` and press Enter. It will ask for your **email** and **password** (the same ones you use on portal.tkegexpat.com). When you type your password, nothing will appear on screen — this is normal. Just type it and press Enter.
 
 You only need to log in once. The tool remembers your credentials.
 
@@ -262,4 +262,4 @@ Make sure you're using a modern terminal (the default Terminal app on Mac works 
 Type `update`.
 
 **Forgot your password**
-Reset it on tkegexpat.com, then type `login` again with the new password.
+Reset it on portal.tkegexpat.com, then type `login` again with the new password.

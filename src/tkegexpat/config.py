@@ -11,8 +11,8 @@ TOKEN_CACHE_FILE = CONFIG_DIR / "token.json"
 COUNTRIES_CACHE_FILE = CONFIG_DIR / "countries.json"
 SETTINGS_FILE = CONFIG_DIR / "settings.json"
 
-AUTH_URL = "https://www.tkegexpat.cn/api/1.1/wf/get-red-queen-api"
-API_BASE = "https://tkegexpat.com"
+AUTH_URL = "https://portal.tkegexpat.com/api/1.1/wf/get-red-queen-api"
+API_BASE = "https://portal.tkegexpat.com"
 
 
 def ensure_config_dir():
