@@ -35,9 +35,11 @@ def load_credentials() -> Optional[dict]:
         return None
 
 
-def save_token(token: str, expires_at: int, expires_in: int):
+def save_token(token: str, expires_at: int, expires_in: int, user_id: Optional[str] = None):
     ensure_config_dir()
     data = {"token": token, "expires_at": expires_at, "expires_in": expires_in}
+    if user_id:
+        data["user_id"] = user_id
     TOKEN_CACHE_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
     os.chmod(TOKEN_CACHE_FILE, 0o600)
 

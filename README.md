@@ -1,6 +1,6 @@
 # TKEG Expat CLI — User Manual
 
-**Version 0.5.0**
+**Version 0.7.0**
 
 A simple tool that lets you look up TKEG Expat products, managed companies, tax data, and legal entity types from your computer's terminal (the black window where you type commands).
 
@@ -28,7 +28,7 @@ Wait until you see "Successfully installed". This only needs to be done once.
 >
 > Then try again.
 
-### Step 2 — Log in
+### Step 2 — Open the app
 
 Type `tkegexpat` and press **Enter** to open the app. You'll see the TKEG Expat logo and a prompt:
 
@@ -36,7 +36,7 @@ Type `tkegexpat` and press **Enter** to open the app. You'll see the TKEG Expat 
 tkegexpat>
 ```
 
-Type `login` and press Enter. It will ask for your **email** and **password** (the same ones you use on portal.tkegexpat.com). When you type your password, nothing will appear on screen — this is normal. Just type it and press Enter.
+Public lookup commands can run without logging in. Type `login` only when you need protected account data or actions such as creating a check-out session. It will ask for your **email** and **password** (the same ones you use on portal.tkegexpat.com). When you type your password, nothing will appear on screen — this is normal. Just type it and press Enter.
 
 You only need to log in once. The tool remembers your credentials.
 
@@ -54,7 +54,7 @@ All commands below are typed at the `tkegexpat>` prompt. You do **not** need to 
 
 ### `login`
 
-Log in with your email and password. Required before using any other command.
+Log in with your email and password. Public lookup commands can run without it; protected account data and write actions still require it.
 
 ### `logout`
 
@@ -154,19 +154,30 @@ tkegexpat> view-product 3
 
 This opens the same product detail view as `product` → `view`, showing supply info, documents, requirements, etc.
 
-### `resolve-requirement <number>`
+### `cos create [<number>]`
 
-After running `view` on a product, if a requirement has a solution (Solution = "Yes"), you can drill into it to find the products that resolve it:
+Create a check-out session (lead) for a product, then walk through its requirements item by item. Use this after running `product` to list products, or after `view` on a product.
 
 ```
-tkegexpat> product nlci
-tkegexpat> view 1
-tkegexpat> resolve-requirement 2
+tkegexpat> product usci
+tkegexpat> cos create 1        # create from list, item #1
+
+tkegexpat> view 2
+tkegexpat> cos create          # create from currently viewed product
 ```
 
-This searches for products matching the requirement's supplier, service type, and jurisdiction. If the viewed product applies to multiple jurisdictions, you'll be prompted to select one.
+The CLI builds the full draft, shows it as a field-by-field preview, and asks for confirmation before posting. Nothing is created until you type `y`.
 
-The results appear as a product table — you can then `view` any of them to see full details.
+After the session is created, the CLI guides you through each requirement of the product:
+
+- **Requirements with no TKEG solution** are listed up front — the client must handle these themselves.
+- **Requirements with a TKEG solution** are walked one by one. For each, you're asked whether the client can provide it themselves:
+  - `y` — client provides → skip and move on.
+  - `n` — client cannot → the CLI scans for resolving products in the same country and asks you to pick one. Picking creates a `check_out_session_item` immediately and continues to the next requirement.
+
+After the walkthrough, the cos becomes the active view. Type `view` to re-display the cos summary with all attached items.
+
+The check-out session is created against the country you searched (the first 2 letters of the product code), not the product's home jurisdiction — for example `product usci` followed by `cos create` always books the session against `us`.
 
 ### `legal-entity <country>`
 
@@ -252,8 +263,8 @@ Close the app.
 **"command not found" when typing `tkegexpat`**
 You need to add the install location to your PATH. See the note in Step 1 above.
 
-**"Not logged in"**
-Type `login` first.
+**"Not logged in" or "HTTP Error 401/403"**
+The command needs protected API access. Type `login` first, then try again.
 
 **Screen looks garbled or has weird characters**
 Make sure you're using a modern terminal (the default Terminal app on Mac works fine). Some very old terminal programs don't support the formatting this tool uses.

@@ -10,9 +10,10 @@ from .config import AUTH_URL, load_credentials, load_token, save_token
 REFRESH_BUFFER = 60  # refresh 60s before actual expiry
 
 
-def _extract_token(data: dict) -> Tuple[Optional[str], Optional[int]]:
+def _extract_token(data: dict) -> Tuple[Optional[str], Optional[int], Optional[str]]:
     token = None
     expires_in = None
+    user_id = None
 
     for key in ("token", "api_token", "apiToken", "access_token", "accessToken"):
         if key in data and data[key]:
@@ -20,17 +21,21 @@ def _extract_token(data: dict) -> Tuple[Optional[str], Optional[int]]:
             break
 
     raw_response = data.get("response") if isinstance(data, dict) else None
-    if token is None and isinstance(raw_response, dict):
-        for key in ("token", "api_token", "apiToken", "access_token", "accessToken"):
-            if key in raw_response and raw_response[key]:
-                token = raw_response[key]
-                break
+    if isinstance(raw_response, dict):
+        if token is None:
+            for key in ("token", "api_token", "apiToken", "access_token", "accessToken"):
+                if key in raw_response and raw_response[key]:
+                    token = raw_response[key]
+                    break
         expires_in = raw_response.get("expires") or raw_response.get("expires_in")
+        user_id = raw_response.get("user_id") or raw_response.get("userId")
 
     if expires_in is None:
         expires_in = data.get("expires") or data.get("expires_in")
+    if user_id is None:
+        user_id = data.get("user_id") or data.get("userId")
 
-    return token, int(expires_in) if expires_in else None
+    return token, int(expires_in) if expires_in else None, user_id
 
 
 def fetch_token(email: str, password: str) -> dict:
@@ -44,14 +49,14 @@ def fetch_token(email: str, password: str) -> dict:
         body = resp.read().decode("utf-8", errors="replace")
         data = json.loads(body)
 
-    token, expires_in = _extract_token(data)
+    token, expires_in, user_id = _extract_token(data)
     if not token:
         raise RuntimeError(f"Token not found in response: {data}")
 
     now = int(time.time())
     expires_at = now + (expires_in or 0)
-    save_token(token, expires_at, expires_in or 0)
-    return {"token": token, "expires_at": expires_at, "source": "live"}
+    save_token(token, expires_at, expires_in or 0, user_id)
+    return {"token": token, "expires_at": expires_at, "user_id": user_id, "source": "live"}
 
 
 def get_token() -> Optional[dict]:
@@ -82,3 +87,21 @@ def require_token() -> str:
     if result:
         return result["token"]
     raise RuntimeError("Not logged in. Run: tkegexpat login")
+
+
+def get_user_id() -> Optional[str]:
+    cached = load_token()
+    if cached and cached.get("user_id"):
+        return cached["user_id"]
+    if cached and cached.get("token"):
+        parts = cached["token"].split("|")
+        if len(parts) >= 2 and parts[1]:
+            return parts[1]
+    return None
+
+
+def require_user_id() -> str:
+    uid = get_user_id()
+    if not uid:
+        raise RuntimeError("Could not determine current user id. Run: logout, then login again.")
+    return uid

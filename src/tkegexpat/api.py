@@ -4,31 +4,44 @@ import json
 import sys
 import urllib.request
 import urllib.parse
-from typing import Any, List, Optional
+from typing import List, Optional
 
-from .auth import require_token
+from .auth import get_token
 from .config import API_BASE
 
 
-def _request(path: str, token: str, params: Optional[dict] = None) -> dict:
+def _optional_token() -> Optional[str]:
+    result = get_token()
+    return result["token"] if result else None
+
+
+def _request(path: str, token: Optional[str] = None, params: Optional[dict] = None) -> dict:
     url = API_BASE + path
     if params:
         url += "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url)
-    req.add_header("Authorization", "Bearer " + token)
+    if token:
+        req.add_header("Authorization", "Bearer " + token)
     req.add_header("User-Agent", "tkegexpat-cli/0.1.0")
     req.add_header("Accept", "application/json")
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8", errors="replace"))
 
 
-def api_get(path: str, params: Optional[dict] = None) -> dict:
-    token = require_token()
+def api_get(path: str, params: Optional[dict] = None, token: Optional[str] = None) -> dict:
+    if token is None:
+        token = _optional_token()
     return _request(path, token, params)
 
 
-def api_list(typename: str, constraints: Optional[List[dict]] = None, limit: int = 100) -> List[dict]:
-    token = require_token()
+def api_list(
+    typename: str,
+    constraints: Optional[List[dict]] = None,
+    limit: int = 100,
+    token: Optional[str] = None,
+) -> List[dict]:
+    if token is None:
+        token = _optional_token()
     results = []
     cursor = 0
     while True:

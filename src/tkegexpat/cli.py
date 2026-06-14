@@ -8,27 +8,21 @@ import sys
 import time
 import urllib.request
 
-from .auth import fetch_token, get_token, require_token
+from .auth import fetch_token, get_token
 from .config import clear_credentials, load_credentials, save_credentials
 
 REPO = "tkeg-expat/tkegexpat-cli"
 
-AUTH_EXEMPT = {"login", "logout", "help", "update"}
+AUTH_EXEMPT = {"login", "logout", "status", "help", "update"}
 
 _last_view_context = "product"
 
 
-def _ensure_auth(command: str, interactive: bool = False):
+def _prepare_command(command: str, interactive: bool = False):
     if command in AUTH_EXEMPT:
         return
-    try:
-        token = require_token()
-    except RuntimeError:
-        msg = "Not logged in. Run: login" if interactive else "Not logged in. Run: tkegexpat login"
-        print(msg, file=sys.stderr)
-        if not interactive:
-            sys.exit(1)
-        raise
+    result = get_token()
+    token = result["token"] if result else None
     from . import countries
     countries.sync(token)
 
@@ -140,6 +134,8 @@ def cmd_view(args):
         from .legal_entity import cmd_view_entity as _view
     elif _last_view_context == "company":
         from .company import cmd_view_company as _view
+    elif _last_view_context == "cos":
+        from .cos import cmd_view_cos as _view
     else:
         from .product import cmd_view_more as _view
     _view(args)
@@ -152,9 +148,11 @@ def cmd_view_product(args):
     _last_view_context = "product"
 
 
-def cmd_resolve_requirement(args):
-    from .product import cmd_resolve_requirement as _resolve
-    _resolve(args)
+def cmd_cos(args):
+    global _last_view_context
+    from .cos import cmd_cos as _cos
+    if _cos(args):
+        _last_view_context = "cos"
 
 
 def cmd_help(args):
@@ -171,7 +169,7 @@ def cmd_help(args):
         ("company <country> [status]", "Managed companies (e.g. company us, company hk live)"),
         ("view <#>", "View details for the last listed items"),
         ("view-product <#>", "View product linked to a due date"),
-        ("resolve-requirement <#>", "Show products that resolve a requirement"),
+        ("cos create [#]", "Create a check-out session — guided through requirement resolution"),
         ("legal-entity <country>", "Legal entity types (e.g. legal-entity us)"),
         ("cit <country>", "Corporate income tax info (e.g. cit us, cit hk)"),
         ("vat <country>", "VAT / sales tax rates (e.g. vat gb, vat sg)"),
@@ -197,7 +195,7 @@ COMMANDS = {
     "company": cmd_company,
     "view": cmd_view,
     "view-product": cmd_view_product,
-    "resolve-requirement": cmd_resolve_requirement,
+    "cos": cmd_cos,
     "legal-entity": cmd_legal_entity,
     "cit": cmd_cit,
     "vat": cmd_vat,
@@ -213,7 +211,7 @@ def _run_command(command: str, args: list, interactive: bool = False):
         print("Type 'help' for available commands.", file=sys.stderr)
         return
     try:
-        _ensure_auth(command, interactive=interactive)
+        _prepare_command(command, interactive=interactive)
     except RuntimeError:
         return
     handler(args)

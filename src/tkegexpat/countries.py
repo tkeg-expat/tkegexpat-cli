@@ -48,12 +48,12 @@ def _save_local(countries: list, fetched_at: int):
     return payload
 
 
-def _fetch_from_api(token: str) -> list:
+def _fetch_from_api(token: Optional[str] = None) -> list:
     from .api import api_list
-    return api_list("info_country")
+    return api_list("info_country", token=token)
 
 
-def sync(token: str, force: bool = False):
+def sync(token: Optional[str] = None, force: bool = False):
     global _cache
     local = _load_local()
     now = int(time.time())

@@ -82,8 +82,9 @@ def _reset_dots():
 
 _last_products = []
 _last_lang = "en_us"
-_last_requirements = []
 _last_view_product = None
+_last_search_country_id = None
+_last_search_country_abbr = None
 
 
 def _term_width() -> int:
@@ -305,8 +306,7 @@ def _resolve_supply_name(supply_id: str, lang: str) -> str:
 
 
 def cmd_view_more(args):
-    global _last_products, _last_lang, _last_requirements, _last_view_product
-    _last_requirements = []
+    global _last_products, _last_lang, _last_view_product
     _last_view_product = None
     if not _last_products:
         print("No product list available. Run 'product <code>' first.", file=sys.stderr)
@@ -449,7 +449,6 @@ def cmd_view_more(args):
             try:
                 req = api_get(f"/api/1.1/obj/supply_requirement/{rid}")
                 r = req.get("response", req)
-                _last_requirements.append(r)
                 req_stype = SERVICE_TYPE_TO_CODE.get(r.get("service_type", ""), r.get("service_type", "-") or "-")
                 supplier_id = r.get("solution_specify_supplier")
                 supplier_name = _resolve_supplier_name(supplier_id) if supplier_id else "-"
@@ -470,73 +469,39 @@ def cmd_view_more(args):
                     "Solution": sol_text,
                 })
             except Exception:
-                _last_requirements.append({})
                 req_rows.append({"#": str(i), "Name": rid, "Condition": "-", "Type": "-", "Supplier": "-", "Product": "-", "Solution": "-"})
         _print_detail_table(req_rows, ["#", "Name", "Condition", "Type", "Supplier", "Product", "Solution"])
-        if any(r.get("has solution") for r in _last_requirements):
-            print(f"\n  {DIM}Resolve a requirement: resolve-requirement <#>{RESET}")
         print()
 
 
-def _select_jurisdiction(product: dict) -> str | None:
-    jids = product.get("full-applicable-jurisdictions") or []
-    if not jids:
-        return None
-    if len(jids) == 1:
-        return jids[0]
-    print(f"\n  Product applies to multiple jurisdictions — select one:")
-    for i, jid in enumerate(jids, 1):
-        print(f"    {i}. {id_to_abbr(jid)}")
+def fetch_product_requirements(product: dict) -> List[dict]:
+    """Returns full supply_requirement records for the product's supply."""
+    supply_id = product.get("supply_info")
+    if not supply_id:
+        return []
     try:
-        choice = input("  Choice: ").strip()
-        ci = int(choice)
-        if ci < 1 or ci > len(jids):
-            print("Invalid choice.", file=sys.stderr)
-            return False
-        return jids[ci - 1]
-    except (ValueError, EOFError, KeyboardInterrupt):
-        print("\n  Cancelled.", file=sys.stderr)
-        return False
+        supply = api_get(f"/api/1.1/obj/supply_all/{supply_id}")
+    except Exception:
+        return []
+    s = supply.get("response", supply)
+    req_ids = s.get("data: requirements", []) or []
+    out = []
+    for rid in req_ids:
+        try:
+            req = api_get(f"/api/1.1/obj/supply_requirement/{rid}")
+            out.append(req.get("response", req))
+        except Exception:
+            out.append({"_id": rid, "_fetch_failed": True})
+    return out
 
 
-def cmd_resolve_requirement(args):
-    global _last_products, _last_lang, _last_requirements
-    if not _last_requirements:
-        print("No requirements available. Run 'view <#>' on a product first.", file=sys.stderr)
-        return
-    if not args:
-        print("Usage: resolve-requirement <#>", file=sys.stderr)
-        return
-
-    try:
-        idx = int(args[0])
-    except ValueError:
-        print(f"Invalid number: {args[0]}", file=sys.stderr)
-        return
-
-    if idx < 1 or idx > len(_last_requirements):
-        print(f"Invalid index. Choose 1-{len(_last_requirements)}.", file=sys.stderr)
-        return
-
-    lang = _last_lang
-    r = _last_requirements[idx - 1]
-    req_name = _format_value("requirement_name-NEW2", r.get("requirement_name-NEW2"), lang)
-    has_sol = r.get("has solution", False)
-
-    if not has_sol:
-        print(f"\n  Requirement #{idx}: {req_name}")
-        print(f"  No TKEG solution available — client must resolve this requirement.")
-        return
-
-    jurisdiction = _select_jurisdiction(_last_view_product) if _last_view_product else None
-    if jurisdiction is False:
-        return
-
-    supply_ids = r.get("solution_specify_supply") or []
+def scan_resolving_products(requirement: dict, jurisdiction_id: Optional[str]) -> List[dict]:
+    """Return products that resolve a requirement, scoped to the given jurisdiction."""
+    supply_ids = requirement.get("solution_specify_supply") or []
     if isinstance(supply_ids, str):
         supply_ids = [supply_ids]
-    supplier_id = r.get("solution_specify_supplier")
-    stype = r.get("service_type")
+    supplier_id = requirement.get("solution_specify_supplier")
+    stype = requirement.get("service_type")
 
     if not supply_ids and supplier_id:
         sup_constraints = [
@@ -544,12 +509,10 @@ def cmd_resolve_requirement(args):
         ]
         if stype:
             sup_constraints.append({"key": "service_type", "constraint_type": "equals", "value": stype})
-        if jurisdiction:
-            sup_constraints.append({"key": "belonging_jurisdiction", "constraint_type": "equals", "value": jurisdiction})
+        if jurisdiction_id:
+            sup_constraints.append({"key": "belonging_jurisdiction", "constraint_type": "equals", "value": jurisdiction_id})
         supplies = api_list("supply_all", sup_constraints)
         supply_ids = [s["_id"] for s in supplies]
-
-    print(f"  Resolving requirement #{idx}: {req_name} ...")
 
     constraints = []
     if supply_ids:
@@ -559,15 +522,13 @@ def cmd_resolve_requirement(args):
             constraints.append({"key": "supply_info", "constraint_type": "in", "value": supply_ids})
     if stype:
         constraints.append({"key": "service_type", "constraint_type": "equals", "value": stype})
-    if jurisdiction:
-        constraints.append({"key": "full-applicable-jurisdictions", "constraint_type": "contains", "value": jurisdiction})
+    if jurisdiction_id:
+        constraints.append({"key": "full-applicable-jurisdictions", "constraint_type": "contains", "value": jurisdiction_id})
 
     if not constraints:
-        print("  No search criteria available for this requirement.")
-        return
+        return []
 
     products = api_list("product:all", constraints)
-
     seen = set()
     unique = []
     for p in products:
@@ -575,23 +536,12 @@ def cmd_resolve_requirement(args):
         if pid not in seen:
             seen.add(pid)
             unique.append(p)
-    products = unique
-
-    if not products:
-        print(f"\n  No products found for this requirement.")
-        return
-
-    _last_products = products
-    _last_lang = lang
-    _last_requirements = []
-
-    print(f"  Found {len(products)} product(s) resolving this requirement.\n")
-    _print_table(products, lang)
+    return unique
 
 
 def cmd_product(args):
-    global _last_products, _last_lang, _last_requirements, _last_view_product
-    _last_requirements = []
+    global _last_products, _last_lang, _last_view_product
+    global _last_search_country_id, _last_search_country_abbr
     _last_view_product = None
     if not args:
         print("Usage: product <code>", file=sys.stderr)
@@ -605,6 +555,8 @@ def cmd_product(args):
     lang = load_settings().get("language", "en_us")
 
     country, service_type = parse_code(args[0].lower())
+    _last_search_country_id = country["_id"]
+    _last_search_country_abbr = country["abbr"]
     print(f"Fetching products: {country['abbr']} + {service_type} ...")
 
     constraints = [
