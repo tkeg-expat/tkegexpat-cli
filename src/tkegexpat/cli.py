@@ -148,6 +148,11 @@ def cmd_view_product(args):
     _last_view_context = "product"
 
 
+def cmd_resolve(args):
+    from .product import cmd_resolve_requirement as _resolve
+    _resolve(args)
+
+
 def cmd_cos(args):
     global _last_view_context
     from .cos import cmd_cos as _cos
@@ -168,6 +173,7 @@ def cmd_help(args):
         ("product <code>", "Query products (e.g. usci = US + company-incorporation)"),
         ("company <country> [status]", "Managed companies (e.g. company us, company hk live)"),
         ("view <#>", "View details for the last listed items"),
+        ("resolve <#>", "Resolve requirement products from the current product view"),
         ("view-product <#>", "View product linked to a due date"),
         ("cos create [#]", "Create a check-out session — guided through requirement resolution"),
         ("legal-entity <country>", "Legal entity types (e.g. legal-entity us)"),
@@ -194,6 +200,7 @@ COMMANDS = {
     "product": cmd_product,
     "company": cmd_company,
     "view": cmd_view,
+    "resolve": cmd_resolve,
     "view-product": cmd_view_product,
     "cos": cmd_cos,
     "legal-entity": cmd_legal_entity,

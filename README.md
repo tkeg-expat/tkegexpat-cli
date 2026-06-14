@@ -1,6 +1,6 @@
 # TKEG Expat CLI — User Manual
 
-**Version 0.7.0**
+**Version 0.7.1**
 
 A simple tool that lets you look up TKEG Expat products, managed companies, tax data, and legal entity types from your computer's terminal (the black window where you type commands).
 
@@ -127,7 +127,7 @@ For **products**, this shows:
 - Memos (public and internal notes)
 - Included services
 - Required documents (grouped by entity type, with format, process, and notes)
-- Requirements (conditions, supplier, related products, solution status)
+- Requirements (conditions, service type, solution status)
 
 For **companies**, this shows:
 - Company information (ID, status, registration date, tax ID, jurisdiction)
@@ -153,6 +153,18 @@ tkegexpat> view-product 3
 ```
 
 This opens the same product detail view as `product` → `view`, showing supply info, documents, requirements, etc.
+
+### `resolve <number>`
+
+After viewing a product, use this to resolve one requirement into matching TKEG products:
+
+```
+tkegexpat> product nlci
+tkegexpat> view 1
+tkegexpat> resolve 1
+```
+
+The product view lists requirements but does not show sellable resolving products directly. `resolve` uses the same requirement-resolution logic as `cos create`, scoped to the country from the product search when available.
 
 ### `cos create [<number>]`
 

@@ -315,8 +315,8 @@ def _walk_requirements(state: dict):
     print(f"\n  {DIM}Fetching product requirements...{RESET}")
     reqs = product_mod.fetch_product_requirements(product)
 
-    no_sol = [r for r in reqs if not r.get("has solution")]
-    solvable = [r for r in reqs if r.get("has solution")]
+    no_sol = [r for r in reqs if not product_mod.can_resolve_requirement(r)]
+    solvable = [r for r in reqs if product_mod.can_resolve_requirement(r)]
 
     if no_sol:
         print(f"\n  {BOLD}Client must handle these themselves{RESET} {DIM}(no TKEG solution){RESET}")
@@ -348,7 +348,7 @@ def _walk_requirements(state: dict):
             continue
 
         print(f"    {DIM}Scanning resolving products...{RESET}")
-        candidates = product_mod.scan_resolving_products(req, jurisdiction_id)
+        candidates = product_mod.resolve_requirement_products(req, jurisdiction_id)
         chosen = _pick_resolving_product(candidates, lang)
         if chosen is None:
             continue

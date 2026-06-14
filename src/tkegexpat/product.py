@@ -83,6 +83,7 @@ def _reset_dots():
 _last_products = []
 _last_lang = "en_us"
 _last_view_product = None
+_last_requirements = []
 _last_search_country_id = None
 _last_search_country_abbr = None
 
@@ -305,9 +306,29 @@ def _resolve_supply_name(supply_id: str, lang: str) -> str:
         return supply_id
 
 
+def _product_label(product: dict, lang: str) -> str:
+    raw = product.get("product-name-new2") or product.get("url_name") or "-"
+    return _format_value("product-name-new2", raw, lang)
+
+
+def _print_resolving_products(products: List[dict], lang: str):
+    if not products:
+        print(f"    {DIM}No TKEG product found.{RESET}")
+        return
+
+    print(f"    Found {len(products)} resolving product(s):")
+    for i, product in enumerate(products, 1):
+        name = _product_label(product, lang)
+        cur = product.get("default_marking_currency", "")
+        price = product.get("corporate_price", "-")
+        main = "main" if product.get("main_product") else "variant"
+        print(f"      {i}. {name}  {DIM}({cur} {price}, {main}){RESET}")
+
+
 def cmd_view_more(args):
-    global _last_products, _last_lang, _last_view_product
+    global _last_products, _last_lang, _last_view_product, _last_requirements
     _last_view_product = None
+    _last_requirements = []
     if not _last_products:
         print("No product list available. Run 'product <code>' first.", file=sys.stderr)
         return
@@ -449,13 +470,8 @@ def cmd_view_more(args):
             try:
                 req = api_get(f"/api/1.1/obj/supply_requirement/{rid}")
                 r = req.get("response", req)
+                _last_requirements.append(r)
                 req_stype = SERVICE_TYPE_TO_CODE.get(r.get("service_type", ""), r.get("service_type", "-") or "-")
-                supplier_id = r.get("solution_specify_supplier")
-                supplier_name = _resolve_supplier_name(supplier_id) if supplier_id else "-"
-                supply_ids = r.get("solution_specify_supply") or []
-                if isinstance(supply_ids, str):
-                    supply_ids = [supply_ids]
-                product_names = ", ".join(_resolve_supply_name(sid, lang) for sid in supply_ids) if supply_ids else "-"
                 has_sol = "Yes" if r.get("has solution") else "No"
                 incl = r.get("item_included", 0)
                 sol_text = f"{has_sol} ({incl})" if incl else has_sol
@@ -464,13 +480,12 @@ def cmd_view_more(args):
                     "Name": _format_value("requirement_name-NEW2", r.get("requirement_name-NEW2"), lang),
                     "Condition": _format_value("condition-NEW2", r.get("condition-NEW2"), lang),
                     "Type": req_stype,
-                    "Supplier": supplier_name,
-                    "Product": product_names,
                     "Solution": sol_text,
                 })
             except Exception:
-                req_rows.append({"#": str(i), "Name": rid, "Condition": "-", "Type": "-", "Supplier": "-", "Product": "-", "Solution": "-"})
-        _print_detail_table(req_rows, ["#", "Name", "Condition", "Type", "Supplier", "Product", "Solution"])
+                req_rows.append({"#": str(i), "Name": rid, "Condition": "-", "Type": "-", "Solution": "-"})
+        _print_detail_table(req_rows, ["#", "Name", "Condition", "Type", "Solution"])
+        print(f"\n  {DIM}Resolve requirement products: resolve <#>{RESET}")
         print()
 
 
@@ -537,6 +552,73 @@ def scan_resolving_products(requirement: dict, jurisdiction_id: Optional[str]) -
             seen.add(pid)
             unique.append(p)
     return unique
+
+
+def can_resolve_requirement(requirement: dict) -> bool:
+    return bool(requirement.get("has solution"))
+
+
+def requirement_resolution_scope(product: Optional[dict] = None) -> Optional[str]:
+    if _last_search_country_id:
+        return _last_search_country_id
+    if not product:
+        return None
+    jurisdiction_id = product.get("belonging_jurisdiction")
+    if jurisdiction_id:
+        return jurisdiction_id
+    applicable = product.get("full-applicable-jurisdictions") or []
+    if isinstance(applicable, str):
+        return applicable
+    if isinstance(applicable, list) and applicable:
+        return applicable[0]
+    return None
+
+
+def resolve_requirement_products(requirement: dict, jurisdiction_id: Optional[str]) -> List[dict]:
+    """Resolve requirement products through the single shared CLI lookup path."""
+    if not can_resolve_requirement(requirement):
+        return []
+    return scan_resolving_products(requirement, jurisdiction_id)
+
+
+def cmd_resolve_requirement(args):
+    global _last_requirements, _last_view_product, _last_lang
+    if not _last_view_product or not _last_requirements:
+        print("No product requirements in view. Run 'product <code>' then 'view <#>' first.", file=sys.stderr)
+        return
+    if not args:
+        print(f"Usage: resolve <#>", file=sys.stderr)
+        return
+
+    try:
+        idx = int(args[0])
+    except ValueError:
+        print(f"Invalid number: {args[0]}", file=sys.stderr)
+        return
+
+    if idx < 1 or idx > len(_last_requirements):
+        print(f"Invalid index. Choose 1-{len(_last_requirements)}.", file=sys.stderr)
+        return
+
+    req = _last_requirements[idx - 1]
+    lang = _last_lang
+    name = _format_value("requirement_name-NEW2", req.get("requirement_name-NEW2"), lang)
+    condition = _format_value("condition-NEW2", req.get("condition-NEW2"), lang)
+    jurisdiction_id = requirement_resolution_scope(_last_view_product)
+    jurisdiction = id_to_abbr(jurisdiction_id) if jurisdiction_id else "-"
+
+    print(f"\n  {BOLD}Resolve requirement #{idx}:{RESET} {name}")
+    if condition and condition != "-":
+        print(f"  {DIM}Condition:{RESET} {condition}")
+    print(f"  {DIM}Jurisdiction scope:{RESET} {jurisdiction}")
+
+    if not can_resolve_requirement(req):
+        print(f"\n  {DIM}This requirement has no TKEG solution. The client must handle it themselves.{RESET}")
+        return
+
+    print(f"\n  {DIM}Scanning resolving products...{RESET}")
+    products = resolve_requirement_products(req, jurisdiction_id)
+    _print_resolving_products(products, lang)
 
 
 def cmd_product(args):
