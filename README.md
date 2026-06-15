@@ -1,6 +1,6 @@
 # TKEG Expat CLI — User Manual
 
-**Version 0.7.1**
+**Version 0.7.2**
 
 A simple tool that lets you look up TKEG Expat products, managed companies, tax data, and legal entity types from your computer's terminal (the black window where you type commands).
 
@@ -36,7 +36,7 @@ Type `tkegexpat` and press **Enter** to open the app. You'll see the TKEG Expat 
 tkegexpat>
 ```
 
-Public lookup commands can run without logging in. Type `login` only when you need protected account data or actions such as creating a check-out session. It will ask for your **email** and **password** (the same ones you use on portal.tkegexpat.com). When you type your password, nothing will appear on screen — this is normal. Just type it and press Enter.
+Public lookup commands can run without logging in. Type `login` only when you need protected account data. It will ask for your **email** and **password** (the same ones you use on portal.tkegexpat.com). When you type your password, nothing will appear on screen — this is normal. Just type it and press Enter.
 
 You only need to log in once. The tool remembers your credentials.
 
@@ -164,32 +164,7 @@ tkegexpat> view 1
 tkegexpat> resolve 1
 ```
 
-The product view lists requirements but does not show sellable resolving products directly. `resolve` uses the same requirement-resolution logic as `cos create`, scoped to the country from the product search when available.
-
-### `cos create [<number>]`
-
-Create a check-out session (lead) for a product, then walk through its requirements item by item. Use this after running `product` to list products, or after `view` on a product.
-
-```
-tkegexpat> product usci
-tkegexpat> cos create 1        # create from list, item #1
-
-tkegexpat> view 2
-tkegexpat> cos create          # create from currently viewed product
-```
-
-The CLI builds the full draft, shows it as a field-by-field preview, and asks for confirmation before posting. Nothing is created until you type `y`.
-
-After the session is created, the CLI guides you through each requirement of the product:
-
-- **Requirements with no TKEG solution** are listed up front — the client must handle these themselves.
-- **Requirements with a TKEG solution** are walked one by one. For each, you're asked whether the client can provide it themselves:
-  - `y` — client provides → skip and move on.
-  - `n` — client cannot → the CLI scans for resolving products in the same country and asks you to pick one. Picking creates a `check_out_session_item` immediately and continues to the next requirement.
-
-After the walkthrough, the cos becomes the active view. Type `view` to re-display the cos summary with all attached items.
-
-The check-out session is created against the country you searched (the first 2 letters of the product code), not the product's home jurisdiction — for example `product usci` followed by `cos create` always books the session against `us`.
+The product view lists requirements but does not show sellable resolving products directly. `resolve` uses the requirement-resolution logic scoped to the country from the product search when available.
 
 ### `legal-entity <country>`
 
