@@ -88,6 +88,14 @@ _last_search_country_id = None
 _last_search_country_abbr = None
 
 
+def _as_list(value) -> list:
+    if not value:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
 def _term_width() -> int:
     try:
         return os.get_terminal_size().columns
@@ -325,6 +333,15 @@ def _print_resolving_products(products: List[dict], lang: str):
         print(f"      {i}. {name}  {DIM}({cur} {price}, {main}){RESET}")
 
 
+def _print_faqs(faq_rows: List[dict]):
+    if not faq_rows:
+        print(f"  {DIM}No FAQs linked to this product's supply.{RESET}")
+        return
+
+    print(f"\n{_dot(f'FAQs ({len(faq_rows)})')}")
+    _print_detail_table(faq_rows, ["#", "Question", "Answer"], indent=4)
+
+
 def cmd_view_more(args):
     global _last_products, _last_lang, _last_view_product, _last_requirements
     _last_view_product = None
@@ -485,8 +502,17 @@ def cmd_view_more(args):
             except Exception:
                 req_rows.append({"#": str(i), "Name": rid, "Condition": "-", "Type": "-", "Solution": "-"})
         _print_detail_table(req_rows, ["#", "Name", "Condition", "Type", "Solution"])
-        print(f"\n  {DIM}Resolve requirement products: resolve <#>{RESET}")
         print()
+
+    action_hints = []
+    if req_ids:
+        action_hints.append("Resolve requirement products: resolve <#>")
+    if _as_list(s.get("qa-list")):
+        action_hints.append("View product FAQs: faq")
+    if action_hints:
+        print()
+        for hint in action_hints:
+            print(f"  {DIM}{hint}{RESET}")
 
 
 def fetch_product_requirements(product: dict) -> List[dict]:
@@ -619,6 +645,59 @@ def cmd_resolve_requirement(args):
     print(f"\n  {DIM}Scanning resolving products...{RESET}")
     products = resolve_requirement_products(req, jurisdiction_id)
     _print_resolving_products(products, lang)
+
+
+def cmd_faq(args):
+    global _last_view_product, _last_lang
+    if args:
+        print("Usage: faq", file=sys.stderr)
+        return
+    if not _last_view_product:
+        print("No product in view. Run 'product <code>' then 'view <#>' first.", file=sys.stderr)
+        return
+
+    supply_id = _last_view_product.get("supply_info")
+    if not supply_id:
+        print("Current product has no linked supply.", file=sys.stderr)
+        return
+
+    lang = _last_lang
+    product_name = _product_label(_last_view_product, lang)
+    _reset_dots()
+    print(f"\n  {BOLD}Product FAQs:{RESET} {product_name}")
+    print(f"  {DIM}Fetching FAQs...{RESET}")
+
+    try:
+        supply = api_get(f"/api/1.1/obj/supply_all/{supply_id}")
+        s = supply.get("response", supply)
+    except Exception as e:
+        print(f"  Failed to fetch supply: {e}", file=sys.stderr)
+        return
+
+    faq_ids = _as_list(s.get("qa-list"))
+    if not faq_ids:
+        _print_faqs([])
+        return
+
+    faq_rows = []
+    for i, fid in enumerate(faq_ids, 1):
+        try:
+            rec = api_get(f"/api/1.1/obj/frequent_questions/{fid}")
+            faq = rec.get("response", rec)
+            question = _format_value("question_new2", faq.get("question_new2"), lang)
+            answer = _format_value("answer_new2", faq.get("answer_new2"), lang)
+            faq_rows.append({
+                "#": str(i),
+                "Question": question,
+                "Answer": answer,
+            })
+        except Exception:
+            faq_rows.append({
+                "#": str(i),
+                "Question": fid,
+                "Answer": "Failed to fetch FAQ.",
+            })
+    _print_faqs(faq_rows)
 
 
 def cmd_product(args):

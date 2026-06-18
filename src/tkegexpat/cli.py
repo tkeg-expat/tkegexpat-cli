@@ -151,6 +151,11 @@ def cmd_resolve(args):
     _resolve(args)
 
 
+def cmd_faq(args):
+    from .product import cmd_faq as _faq
+    _faq(args)
+
+
 def cmd_help(args):
     from . import __version__
     B = "\033[1m"
@@ -165,6 +170,7 @@ def cmd_help(args):
         ("company <country> [status]", "Managed companies (e.g. company us, company hk live)"),
         ("view <#>", "View details for the last listed items"),
         ("resolve <#>", "Resolve requirement products from the current product view"),
+        ("faq", "Show FAQs from the current product view"),
         ("view-product <#>", "View product linked to a due date"),
         ("legal-entity <country>", "Legal entity types (e.g. legal-entity us)"),
         ("cit <country>", "Corporate income tax info (e.g. cit us, cit hk)"),
@@ -191,6 +197,7 @@ COMMANDS = {
     "company": cmd_company,
     "view": cmd_view,
     "resolve": cmd_resolve,
+    "faq": cmd_faq,
     "view-product": cmd_view_product,
     "legal-entity": cmd_legal_entity,
     "cit": cmd_cit,
@@ -299,7 +306,7 @@ def _auto_update():
         if not match:
             return
         remote = match.group(1)
-        if remote == __version__:
+        if _version_key(remote) <= _version_key(__version__):
             return
         print(f"  Updating v{__version__} → v{remote} ...")
         result = subprocess.run(
@@ -313,6 +320,10 @@ def _auto_update():
             print(f"  Update failed.", file=sys.stderr)
     except Exception:
         pass
+
+
+def _version_key(version: str) -> tuple:
+    return tuple(int(part) for part in re.findall(r"\d+", version))
 
 
 def main():
