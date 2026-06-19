@@ -319,6 +319,10 @@ def _product_label(product: dict, lang: str) -> str:
     return _format_value("product-name-new2", raw, lang)
 
 
+def _product_slug(product: dict) -> str:
+    return product.get("Slug") or product.get("url_name") or "-"
+
+
 def _print_resolving_products(products: List[dict], lang: str):
     if not products:
         print(f"    {DIM}No TKEG product found.{RESET}")
@@ -371,6 +375,7 @@ def cmd_view_more(args):
     pid = product.get("tkeg_product_id (New)", "-")
     stype = _format_value("service_type", product.get("service_type"), lang)
     main = _format_value("main_product", product.get("main_product"), lang)
+    slug = _product_slug(product)
     cur = product.get("default_marking_currency", "")
     price = product.get("corporate_price", "-")
     applicable = _format_value("full-applicable-jurisdictions", product.get("full-applicable-jurisdictions"), lang)
@@ -380,7 +385,7 @@ def cmd_view_more(args):
     if not supply_id:
         print(f"\n{_dot(f'#{idx}: {name}')}")
         info = [
-            ("Product ID", pid), ("Service Type", stype), ("Main Product", main),
+            ("Product ID", pid), ("Product Slug", slug), ("Service Type", stype), ("Main Product", main),
             ("Price", f"{cur} {price}"), ("Applicable", applicable),
         ]
         _print_kv_table(info)
@@ -402,7 +407,7 @@ def cmd_view_more(args):
 
     print(f"\n\n{_dot(f'#{idx}: {name}')}")
     info = [
-        ("Product ID", pid), ("Service Type", stype), ("Main Product", main),
+        ("Product ID", pid), ("Product Slug", slug), ("Service Type", stype), ("Main Product", main),
         ("Price", f"{cur} {price}"), ("Applicable", applicable),
         ("Cost Price", f"{s_cur} {cost}"),
         ("Est. Business Days", str(est_days)), ("Est. Government Fee", str(est_gov)),
