@@ -111,6 +111,11 @@ def cmd_company(args):
         _last_view_context = "company"
 
 
+def cmd_tkeginfo(args):
+    from .tkeginfo import cmd_tkeginfo as _tkeginfo
+    _tkeginfo(args)
+
+
 def cmd_cit(args):
     from .cit import cmd_cit as _cit
     _cit(args)
@@ -173,6 +178,7 @@ def cmd_help(args):
         ("faq", "Show FAQs from the current product view"),
         ("view-product <#>", "View product linked to a due date"),
         ("legal-entity <country>", "Legal entity types (e.g. legal-entity us)"),
+        ("tkeginfo", "TKEG Expat's own group entities (name, address, active)"),
         ("cit <country>", "Corporate income tax info (e.g. cit us, cit hk)"),
         ("vat <country>", "VAT / sales tax rates (e.g. vat gb, vat sg)"),
         ("update", "Update CLI to the latest version"),
@@ -200,6 +206,7 @@ COMMANDS = {
     "faq": cmd_faq,
     "view-product": cmd_view_product,
     "legal-entity": cmd_legal_entity,
+    "tkeginfo": cmd_tkeginfo,
     "cit": cmd_cit,
     "vat": cmd_vat,
     "update": cmd_update,

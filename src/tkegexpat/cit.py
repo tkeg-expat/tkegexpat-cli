@@ -130,12 +130,15 @@ def _print_detail_table(rows: list, labels: list, indent: int = 4):
             print(pad + f" {DIM}│{RESET} ".join(parts))
 
 
-def _fmt(value, lang: str) -> str:
+def _fmt(value, lang) -> str:
     if value is None:
         return "-"
     s = str(value)
     if not s:
         return "-"
+    if not lang:
+        # Logged out → show the raw field, unfiltered by language.
+        return strip_markup(s)
     extracted = extract_lang(s, lang)
     if extracted:
         return strip_markup(extracted)
@@ -148,8 +151,8 @@ def cmd_cit(args):
         print("  e.g. cit us, cit hk, cit sg", file=sys.stderr)
         return
 
-    from .config import load_settings
-    lang = load_settings().get("language", "en_us")
+    from .config import effective_language
+    lang = effective_language()
 
     abbr = args[0].upper()
     country = country_lookup(abbr)

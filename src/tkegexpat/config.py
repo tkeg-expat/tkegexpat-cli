@@ -67,6 +67,18 @@ def save_settings(settings: dict):
     SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
 
 
+def effective_language() -> Optional[str]:
+    """Language used to render multilingual (*-NEW2) fields.
+
+    Logged-in users get their configured language (default ``en_us``).
+    Logged-out users get ``None``, which renders the raw field value with no
+    language filtering (all language variants are shown).
+    """
+    if load_credentials() is None:
+        return None
+    return load_settings().get("language", "en_us")
+
+
 def clear_credentials():
     if CREDENTIALS_FILE.exists():
         CREDENTIALS_FILE.unlink()

@@ -13,8 +13,8 @@ def cmd_vat(args):
         print("  e.g. vat us, vat gb, vat sg", file=sys.stderr)
         return
 
-    from .config import load_settings
-    lang = load_settings().get("language", "en_us")
+    from .config import effective_language
+    lang = effective_language()
 
     abbr = args[0].upper()
     country = country_lookup(abbr)

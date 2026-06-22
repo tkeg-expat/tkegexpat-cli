@@ -38,6 +38,8 @@ tkegexpat>
 
 Public lookup commands can run without logging in. Type `login` only when you need protected account data. It will ask for your **email** and **password** (the same ones you use on portal.tkegexpat.com). When you type your password, nothing will appear on screen — this is normal. Just type it and press Enter.
 
+> **Note on languages:** When you are **not** logged in, results are shown as the raw bilingual text stored in the database (both English and Chinese together). Once you **log in**, results are shown in your account's language (English by default).
+
 You only need to log in once. The tool remembers your credentials.
 
 ### Step 3 — You're ready
@@ -194,6 +196,16 @@ Use `view <number>` to see full details for any entity in the list.
 tkegexpat> legal-entity us
 tkegexpat> view 3
 ```
+
+### `tkeginfo`
+
+List TKEG Expat's own group entities (the legal firms that make up the TKEG group). Requires `login`.
+
+```
+tkegexpat> tkeginfo
+```
+
+This shows a table of every group entity with its **name**, **registered address**, and whether it is currently **active** (Yes / No). Active firms are listed first.
 
 ### `cit <country>`
 

@@ -61,7 +61,11 @@ def ljust_cjk(text: str, width: int) -> str:
     return text + " " * max(0, width - dw)
 
 
-def extract_lang(text: str, lang: str) -> Optional[str]:
+def extract_lang(text: str, lang: Optional[str]) -> Optional[str]:
+    # No language selected (e.g. logged out) → no extraction; callers fall back
+    # to the raw field value.
+    if not lang:
+        return None
     pattern = r"\[" + re.escape(lang) + r"\](.*?)\[/" + re.escape(lang) + r"\]"
     match = re.search(pattern, text, re.DOTALL)
     if match:

@@ -76,8 +76,8 @@ def cmd_company(args):
         print("  e.g. company us, company hk live", file=sys.stderr)
         return
 
-    from .config import load_settings
-    lang = load_settings().get("language", "en_us")
+    from .config import effective_language
+    lang = effective_language()
     _last_lang = lang
 
     abbr = args[0].upper()
@@ -225,8 +225,11 @@ def cmd_view_company(args):
                     prec = api_get(f"/api/1.1/obj/product:all/{product_id}")
                     p = prec.get("response", prec)
                     raw = p.get("product-name-new2") or ""
-                    extracted = extract_lang(raw, lang)
-                    product_name = strip_markup(extracted) if extracted else raw or "-"
+                    if not lang:
+                        product_name = strip_markup(raw) if raw else "-"
+                    else:
+                        extracted = extract_lang(raw, lang)
+                        product_name = strip_markup(extracted) if extracted else raw or "-"
                 except Exception:
                     product_name = product_id[:12]
             due_rows.append({

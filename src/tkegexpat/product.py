@@ -717,8 +717,8 @@ def cmd_product(args):
             print(f"  {code}  {name}", file=sys.stderr)
         return
 
-    from .config import load_settings
-    lang = load_settings().get("language", "en_us")
+    from .config import effective_language
+    lang = effective_language()
 
     country, service_type = parse_code(args[0].lower())
     _last_search_country_id = country["_id"]

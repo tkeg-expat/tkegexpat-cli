@@ -35,8 +35,8 @@ def cmd_legal_entity(args):
         print("  e.g. legal-entity us, legal-entity hk", file=sys.stderr)
         return
 
-    from .config import load_settings
-    lang = load_settings().get("language", "en_us")
+    from .config import effective_language
+    lang = effective_language()
     _last_lang = lang
 
     abbr = args[0].upper()
