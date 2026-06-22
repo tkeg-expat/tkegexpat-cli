@@ -67,16 +67,39 @@ def save_settings(settings: dict):
     SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
 
 
+def _explicit_settings_language() -> Optional[str]:
+    """The language explicitly written to settings.json, or None if unset.
+
+    Unlike ``load_settings()`` this does not fabricate an ``en_us`` default, so
+    callers can tell "no preference" apart from "explicitly chose en_us".
+    """
+    if not SETTINGS_FILE.exists():
+        return None
+    try:
+        data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    lang = data.get("language")
+    return lang or None
+
+
 def effective_language() -> Optional[str]:
     """Language used to render multilingual (*-NEW2) fields.
 
-    Logged-in users get their configured language (default ``en_us``).
-    Logged-out users get ``None``, which renders the raw field value with no
-    language filtering (all language variants are shown).
+    Resolution order:
+    1. An explicit language in settings.json is always honored — logged in or
+       not. This lets non-interactive callers (e.g. the Red Queen) pick a
+       language without logging in.
+    2. Otherwise a logged-in user defaults to ``en_us``.
+    3. Otherwise (logged out, no preference) returns ``None``, which renders the
+       raw field value with no language filtering (all variants shown).
     """
-    if load_credentials() is None:
-        return None
-    return load_settings().get("language", "en_us")
+    explicit = _explicit_settings_language()
+    if explicit:
+        return explicit
+    if load_credentials() is not None:
+        return "en_us"
+    return None
 
 
 def clear_credentials():
