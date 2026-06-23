@@ -199,7 +199,7 @@ tkegexpat> view 3
 
 ### `tkeginfo`
 
-List TKEG Expat's own group entities (the legal firms that make up the TKEG group). Requires `login`.
+List TKEG Expat's own group entities (the legal firms that make up the TKEG group). No login required.
 
 ```
 tkegexpat> tkeginfo

@@ -13,7 +13,7 @@ from .config import clear_credentials, load_credentials, save_credentials
 
 REPO = "tkeg-expat/tkegexpat-cli"
 
-AUTH_EXEMPT = {"login", "logout", "status", "help", "update"}
+AUTH_EXEMPT = {"login", "logout", "status", "help", "update", "tkeginfo"}
 
 _last_view_context = "product"
 

@@ -36,7 +36,7 @@ def cmd_tkeginfo(args):
     entities = api_list(TKEGEXPAT_TYPE)
 
     if not entities:
-        print("\n  No entities found. (Are you logged in? Run 'login'.)")
+        print("\n  No entities found.")
         return
 
     print("  Resolving names ...")
