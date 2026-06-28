@@ -171,7 +171,7 @@ def cmd_help(args):
         ("login", "Log in with email and password"),
         ("logout", "Clear saved credentials and token"),
         ("status", "Show current auth status"),
-        ("product <code>", "Query products (e.g. usci = US + company-incorporation)"),
+        ("product <code|slug|id>", "Products by code (usci), or open one by slug / _id"),
         ("company <country> [status]", "Managed companies (e.g. company us, company hk live)"),
         ("view <#>", "View details for the last listed items"),
         ("resolve <#>", "Resolve requirement products from the current product view"),
@@ -192,7 +192,8 @@ def cmd_help(args):
         print(f"  {c.ljust(cw)} {D}│{R} {d}")
     print(f"\n  {B}Product code format:{R} <country><service>")
     print(f"  {D}Country:{R} 2-letter ISO code (us, gb, hk, sg, ie, ...)")
-    print(f"  {D}Service:{R} ci ba ac co rm ra nd cs cd tr sl ar ca af os\n")
+    print(f"  {D}Service:{R} ci ba ac co rm ra nd cs cd tr sl ar ca af os")
+    print(f"  {D}Or pass a product slug or _id to open that one product directly.{R}\n")
 
 
 COMMANDS = {

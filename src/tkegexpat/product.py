@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from typing import List, Optional
 
@@ -705,14 +706,86 @@ def cmd_faq(args):
     _print_faqs(faq_rows)
 
 
+def _classify_product_input(raw: str) -> str:
+    """Classify a `product <arg>` argument as 'uid', 'code', or 'slug'.
+
+    - 'uid':  a Bubble record id, e.g. 1707576750806x567280454812041200
+    - 'code': the <country><service> list form, e.g. usci (US + company-incorporation)
+    - 'slug': a product URL slug, e.g. united-kingdom-accounting-1 (the fallback)
+    """
+    s = raw.strip()
+    if re.fullmatch(r"\d+x\d+", s):
+        return "uid"
+    if "-" not in s and len(s) >= 4:
+        service_code = s[-2:].lower()
+        country_code = s[:-2]
+        if SERVICE_TYPES.get(service_code) and country_lookup(country_code):
+            return "code"
+    return "slug"
+
+
+def _lookup_single_product(value: str, lang: str, by: str):
+    """Fetch one product by id or slug and jump straight to its detail view."""
+    global _last_products, _last_lang
+    global _last_search_country_id, _last_search_country_abbr
+
+    if by == "id":
+        print(f"Looking up product by ID: {value} ...")
+        product = None
+        try:
+            resp = api_get(f"/api/1.1/obj/product:all/{value}")
+            candidate = resp.get("response", resp)
+            if candidate and candidate.get("_id"):
+                product = candidate
+        except Exception:
+            product = None
+        if not product:
+            print(f"No product found with ID '{value}'.", file=sys.stderr)
+            return
+        products = [product]
+    else:  # slug
+        slug = value.lower()
+        print(f"Looking up product by slug: {slug} ...")
+        try:
+            products = api_list("product:all", [
+                {"key": "Slug", "constraint_type": "equals", "value": slug},
+            ])
+        except Exception as e:
+            print(f"Lookup failed: {e}", file=sys.stderr)
+            return
+        if not products:
+            print(f"No product found with slug '{slug}'.", file=sys.stderr)
+            print(
+                f"  {DIM}Tip: use a code like 'usci' to list a country's products, "
+                f"or a product slug / ID to open one.{RESET}",
+                file=sys.stderr,
+            )
+            return
+
+    # A single-product lookup has no "search country"; reset so requirement
+    # resolution scopes to this product's own jurisdiction, not a prior search.
+    _last_search_country_id = None
+    _last_search_country_abbr = None
+    _last_products = products
+    _last_lang = lang
+
+    if len(products) == 1:
+        cmd_view_more(["1"])
+    else:
+        print(f"Found {len(products)} matching products.\n")
+        _print_table(products, lang)
+
+
 def cmd_product(args):
     global _last_products, _last_lang, _last_view_product
     global _last_search_country_id, _last_search_country_abbr
     _last_view_product = None
     if not args:
-        print("Usage: product <code>", file=sys.stderr)
-        print("  e.g. product usci  (US + company-incorporation)", file=sys.stderr)
-        print(f"\nService type codes:", file=sys.stderr)
+        print("Usage: product <code|slug|id>", file=sys.stderr)
+        print("  product usci                              list US company-incorporation products", file=sys.stderr)
+        print("  product united-kingdom-accounting-1       open one product by its slug", file=sys.stderr)
+        print("  product 1707576750806x567280454812041200  open one product by its ID (_id)", file=sys.stderr)
+        print(f"\nService type codes (for the <country><service> list form):", file=sys.stderr)
         for code, name in sorted(SERVICE_TYPES.items()):
             print(f"  {code}  {name}", file=sys.stderr)
         return
@@ -720,7 +793,18 @@ def cmd_product(args):
     from .config import effective_language
     lang = effective_language()
 
-    country, service_type = parse_code(args[0].lower())
+    raw = args[0].strip()
+    kind = _classify_product_input(raw)
+
+    if kind == "uid":
+        _lookup_single_product(raw, lang, by="id")
+        return
+    if kind == "slug":
+        _lookup_single_product(raw, lang, by="slug")
+        return
+
+    # service code: <country><service> → list of matching products
+    country, service_type = parse_code(raw.lower())
     _last_search_country_id = country["_id"]
     _last_search_country_abbr = country["abbr"]
     print(f"Fetching products: {country['abbr']} + {service_type} ...")

@@ -1,6 +1,6 @@
 # TKEG Expat CLI — User Manual
 
-**Version 0.7.4**
+**Version 0.7.8**
 
 A simple tool that lets you look up TKEG Expat products, managed companies, tax data, and legal entity types from your computer's terminal (the black window where you type commands).
 
@@ -66,20 +66,34 @@ Log out and clear your saved credentials.
 
 Check whether you're logged in and if your session is still valid.
 
-### `product <code>`
+### `product <code | slug | id>`
 
-Look up products. The code is made of two parts:
+Look up products. You can pass any of three things:
+
+**1. A service code** — lists every matching product. The code is made of two parts:
 
 - **Country** — a 2-letter code (e.g. `us` for United States, `gb` for United Kingdom, `hk` for Hong Kong)
-- **Service** — a 2-letter code for the type of service
-
-**Example:** To find company incorporation products in the US:
+- **Service** — a 2-letter code for the type of service (see the table below)
 
 ```
 tkegexpat> product usci
 ```
 
-This shows a table of matching products with their names, prices, and IDs.
+This shows a table of matching products with their names, prices, and IDs. Use `view <number>` to open one.
+
+**2. A product slug** — opens that one product directly (no list step):
+
+```
+tkegexpat> product united-kingdom-accounting-1
+```
+
+**3. A product ID** (the internal `_id`) — also opens that one product directly:
+
+```
+tkegexpat> product 1707576750806x567280454812041200
+```
+
+Because a slug or ID matches exactly one product, the tool skips the list and jumps straight to the full product detail view (the same view you get from `product usci` → `view 1`).
 
 #### Service codes
 
