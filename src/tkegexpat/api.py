@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import urllib.request
 import urllib.parse
@@ -15,15 +16,23 @@ def _optional_token() -> Optional[str]:
     return result["token"] if result else None
 
 
-def _request(path: str, token: Optional[str] = None, params: Optional[dict] = None) -> dict:
+def _build_request(path: str, token: Optional[str] = None, params: Optional[dict] = None) -> urllib.request.Request:
     url = API_BASE + path
     if params:
         url += "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url)
-    if token:
+    cookie = os.environ.get("TKEGEXPAT_FORWARD_COOKIE")
+    if cookie:
+        req.add_header("Cookie", cookie)
+    elif token:
         req.add_header("Authorization", "Bearer " + token)
     req.add_header("User-Agent", "tkegexpat-cli/0.1.0")
     req.add_header("Accept", "application/json")
+    return req
+
+
+def _request(path: str, token: Optional[str] = None, params: Optional[dict] = None) -> dict:
+    req = _build_request(path, token, params)
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8", errors="replace"))
 
