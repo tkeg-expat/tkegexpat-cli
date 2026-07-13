@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.request
 from typing import Optional, Tuple
@@ -90,6 +91,9 @@ def require_token() -> str:
 
 
 def get_user_id() -> Optional[str]:
+    env_uid = os.environ.get("TKEGEXPAT_USER_ID")
+    if env_uid:
+        return env_uid
     cached = load_token()
     if cached and cached.get("user_id"):
         return cached["user_id"]

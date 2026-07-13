@@ -23,3 +23,20 @@ class BuildRequestAuth(unittest.TestCase):
         os.environ["TKEGEXPAT_FORWARD_COOKIE"] = ""
         req = api._build_request("/api/1.1/obj/product")
         self.assertIsNone(req.get_header("Cookie"))
+
+
+from tkegexpat import auth
+
+
+class UserIdEnvOverride(unittest.TestCase):
+    def tearDown(self):
+        os.environ.pop("TKEGEXPAT_USER_ID", None)
+
+    def test_env_user_id_wins(self):
+        os.environ["TKEGEXPAT_USER_ID"] = "1700000000000x999"
+        self.assertEqual(auth.get_user_id(), "1700000000000x999")
+
+    def test_empty_env_falls_back(self):
+        os.environ["TKEGEXPAT_USER_ID"] = ""
+        # No cached token in a clean $HOME → None (fallback path exercised)
+        self.assertIsNone(auth.get_user_id())
