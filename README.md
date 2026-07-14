@@ -1,6 +1,6 @@
 # TKEG Expat CLI — User Manual
 
-**Version 0.7.8**
+**Version 0.22.0**
 
 A simple tool that lets you look up TKEG Expat products, managed companies, tax data, and legal entity types from your computer's terminal (the black window where you type commands).
 
