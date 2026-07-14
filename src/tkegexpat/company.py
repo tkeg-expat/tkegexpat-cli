@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 
 from .api import api_get, api_list
@@ -67,20 +68,98 @@ def _print_additional_info(text):
         _print_kv_table([(name, body or "-") for name, body in sections])
 
 
+def _classify_company_input(raw: str) -> str:
+    """Classify a `company <arg>` first argument.
+
+    - 'uid':      a Bubble record id, e.g. 1754212519690x256973978537820160
+    - 'country':  a country code that resolves (us, hk, gb) -> country list form
+    - 'tkeg_id':  otherwise, a TKEG company id (e.g. 1111111176) -> direct lookup
+
+    A country code always wins the list interpretation, so the existing
+    `company us [status]` behaviour is preserved. TKEG company ids are numeric
+    and never collide with the alphabetic country codes.
+    """
+    s = raw.strip()
+    if re.fullmatch(r"\d+x\d+", s):
+        return "uid"
+    if country_lookup(s.upper()):
+        return "country"
+    return "tkeg_id"
+
+
+def _lookup_company_by_id(value: str):
+    """Fetch one company by its Bubble _id, or None if not found."""
+    print(f"  Looking up company by ID: {value} ...")
+    try:
+        resp = api_get(f"/api/1.1/obj/entity:company:all/{value}")
+        c = resp.get("response", resp)
+    except Exception:
+        c = None
+    if not c or not c.get("_id"):
+        print(f"  No company found with ID '{value}'.", file=sys.stderr)
+        return None
+    return c
+
+
+def _lookup_company_by_tkeg_id(value: str):
+    """Fetch one company by its tkeg_company_id, or None if not found."""
+    print(f"  Looking up company by TKEG company ID: {value} ...")
+    try:
+        companies = api_list("entity:company:all", [
+            {"key": "tkeg_company_id", "constraint_type": "equals", "value": value},
+        ])
+    except Exception as e:
+        print(f"  Lookup failed: {e}", file=sys.stderr)
+        return None
+    if not companies:
+        print(f"  No company found with TKEG company ID '{value}'.", file=sys.stderr)
+        print(
+            f"  {DIM}Tip: pass a country code (e.g. 'company us') to list a country's "
+            f"companies, or a company _id / TKEG company id to open one.{RESET}",
+            file=sys.stderr,
+        )
+        return None
+    if len(companies) > 1:
+        print(f"  {DIM}Note: {len(companies)} companies share this id; opening the first.{RESET}")
+    return companies[0]
+
+
 def cmd_company(args):
     global _last_companies, _last_lang
     _last_companies = []
 
-    if not args:
-        print("Usage: company <country> [status]", file=sys.stderr)
-        print("  e.g. company us, company hk live", file=sys.stderr)
+    from .filters import parse_filters
+    positional, extra, ok = parse_filters(args, crm_field="data: crm-entity", client_field="client_entity")
+    if not ok:
+        return
+
+    if not positional:
+        print("Usage: company <country|id> [status]  [--crm <_id>] [--client <_id|tkeg-id>]", file=sys.stderr)
+        print("  company us                                list US managed companies", file=sys.stderr)
+        print("  company hk live --crm <_id>               list HK 'live' companies for a CRM", file=sys.stderr)
+        print("  company 1111111176                        open one company by its TKEG company id", file=sys.stderr)
+        print("  company 1754212519690x256973978537820160  open one company by its _id", file=sys.stderr)
         return
 
     from .config import effective_language
     lang = effective_language()
     _last_lang = lang
 
-    abbr = args[0].upper()
+    raw = positional[0].strip()
+    kind = _classify_company_input(raw)
+
+    if kind in ("uid", "tkeg_id"):
+        if extra:
+            print(f"  {DIM}(--crm/--client ignored for direct lookup){RESET}")
+        c = _lookup_company_by_id(raw) if kind == "uid" else _lookup_company_by_tkeg_id(raw)
+        if not c:
+            return
+        _last_companies = [c]
+        _render_company_detail(c, lang)
+        return True
+
+    # country list form: company <country> [status]
+    abbr = raw.upper()
     country = country_lookup(abbr)
     if not country:
         print(f"Unknown country code '{abbr}'.", file=sys.stderr)
@@ -90,11 +169,11 @@ def cmd_company(args):
 
     constraints = [
         {"key": "data-jurisdiction", "constraint_type": "equals", "value": country["_id"]},
-    ]
+    ] + extra
 
     status_filter = None
-    if len(args) > 1:
-        status_filter = " ".join(args[1:]).lower()
+    if len(positional) > 1:
+        status_filter = " ".join(positional[1:]).lower()
 
     label = f"{cname} ({abbr})"
     if status_filter:
@@ -138,7 +217,6 @@ def cmd_company(args):
 
 
 def cmd_view_company(args):
-    global _last_companies, _last_lang
     if not _last_companies:
         print("No company list available. Run 'company <country> [status]' first.", file=sys.stderr)
         return
@@ -156,8 +234,18 @@ def cmd_view_company(args):
         print(f"Invalid index. Choose 1-{len(_last_companies)}.", file=sys.stderr)
         return
 
-    lang = _last_lang
-    c = _last_companies[idx - 1]
+    _render_company_detail(_last_companies[idx - 1], _last_lang, idx)
+
+
+def _render_company_detail(c, lang, idx=None):
+    """Render the full company detail view for one company record.
+
+    Shared by `view <#>` (from a list) and the direct `company <id>` lookup.
+    ``idx`` is the 1-based list position for the heading, or None for a
+    directly-resolved company.
+    """
+    global _last_dues
+
     company_id = c["_id"]
 
     _reset_dots()
@@ -165,7 +253,8 @@ def cmd_view_company(args):
     prime = _resolve_prime(c.get("prime entity"))
     prime_name = prime.get("entity_name") or "-"
 
-    print(f"\n\n{_dot(f'#{idx}: {prime_name}')}")
+    heading = f"#{idx}: {prime_name}" if idx else prime_name
+    print(f"\n\n{_dot(heading)}")
 
     info = [
         ("Company ID", c.get("tkeg_company_id") or "-"),
@@ -244,6 +333,9 @@ def cmd_view_company(args):
         _print_detail_table(due_rows, ["#", "Name", "Product", "Service", "Status", "Due Date", "Memo"])
         print(f"\n  {DIM}View due date product: view-product <#>{RESET}")
 
+    from . import message
+    message.set_context("company", company_id, prime_name)
+    print(f"\n  {DIM}Company messages: message{RESET}")
     print()
 
 

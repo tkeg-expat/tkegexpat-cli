@@ -65,3 +65,29 @@ def api_list(
             break
         cursor += response.get("count", limit)
     return results
+
+
+def api_page(
+    typename: str,
+    constraints: Optional[List[dict]] = None,
+    cursor: int = 0,
+    limit: int = 20,
+    sort_field: Optional[str] = None,
+    descending: bool = False,
+    token: Optional[str] = None,
+) -> dict:
+    """Fetch ONE page (for large result sets). Returns {results, count, remaining}."""
+    if token is None:
+        token = _optional_token()
+    params = {"cursor": str(cursor), "limit": str(limit)}
+    if constraints:
+        params["constraints"] = json.dumps(constraints)
+    if sort_field:
+        params["sort_field"] = sort_field
+        params["descending"] = "true" if descending else "false"
+    response = _request(f"/api/1.1/obj/{typename}", token, params).get("response", {})
+    return {
+        "results": response.get("results", []),
+        "count": response.get("count", 0),
+        "remaining": response.get("remaining", 0),
+    }
