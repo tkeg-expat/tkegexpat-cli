@@ -4,7 +4,7 @@ import sys
 
 from .api import api_get
 from .countries import lookup as country_lookup
-from .i18n import display_width, extract_lang, ljust_cjk, strip_markup, wrap_cjk
+from .i18n import display_width, extract_lang, ljust_cjk, strip_markup, wrap_cjk, wrap_display
 
 BOLD = "\033[1m"
 DIM = "\033[2m"
@@ -105,10 +105,13 @@ def _fit_widths(widths: dict, labels: list, indent: int) -> dict:
     return fitted
 
 
-def _print_detail_table(rows: list, labels: list, indent: int = 4):
+def _print_detail_table(rows: list, labels: list, indent: int = 4, char_wrap=None):
+    """char_wrap: labels whose cells use wrap_display, which never overflows
+    (spaceless CJK, long URLs). Every other column keeps wrap_cjk."""
     if not rows:
         return
     pad = " " * indent
+    char_wrap = set(char_wrap or ())
     widths = {}
     for l in labels:
         widths[l] = max(display_width(l), *(display_width(r.get(l, "-")) for r in rows))
@@ -119,7 +122,11 @@ def _print_detail_table(rows: list, labels: list, indent: int = 4):
     print(header)
     print(sep)
     for r in rows:
-        wrapped = {l: wrap_cjk(r.get(l, "-") or "-", widths[l]) for l in labels}
+        wrapped = {}
+        for l in labels:
+            cell = r.get(l, "-") or "-"
+            wrap = wrap_display if l in char_wrap else wrap_cjk
+            wrapped[l] = wrap(cell, widths[l])
         max_lines = max(len(v) for v in wrapped.values())
         for li in range(max_lines):
             parts = []

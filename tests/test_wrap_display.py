@@ -48,5 +48,63 @@ class WrapDisplay(unittest.TestCase):
         )
 
 
+import contextlib
+import io
+import re
+
+from tkegexpat import cit
+
+_ANSI = re.compile(r"\033\[[0-9;]*m")
+
+
+def _render(rows, labels, **kwargs):
+    """Capture _print_detail_table output as plain (ANSI-stripped) lines."""
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        cit._print_detail_table(rows, labels, **kwargs)
+    return [_ANSI.sub("", l) for l in buf.getvalue().splitlines()]
+
+
+class PrintDetailTableCharWrap(unittest.TestCase):
+    def setUp(self):
+        # Pin the terminal width: os.get_terminal_size() reads the real fd 1 and
+        # is not affected by redirect_stdout, so it is not deterministic here.
+        self._real_term_width = cit._term_width
+        cit._term_width = lambda: 80
+
+    def tearDown(self):
+        cit._term_width = self._real_term_width
+
+    def test_char_wrap_column_never_overflows(self):
+        # 64 chars = 128 display columns, no spaces. At a pinned 80-column
+        # terminal the Text column tops out at 70, so this must wrap to 2 lines.
+        cell = "公司注册服务协定" * 8
+        lines = _render([{"#": "1", "Text": cell}], ["#", "Text"], char_wrap=["Text"])
+        body = lines[2:]  # skip header + separator
+        self.assertEqual(len(body), 2)
+        for line in lines:
+            self.assertLessEqual(display_width(line), 80)
+
+    def test_default_behaviour_is_unchanged(self):
+        # Without char_wrap the spaceless cell stays on one 136-column line that
+        # runs past the table border, exactly as it does today. This is the
+        # regression guard for every existing table.
+        cell = "公司注册服务协定" * 8
+        lines = _render([{"#": "1", "Text": cell}], ["#", "Text"])
+        body = lines[2:]
+        self.assertEqual(len(body), 1)
+        self.assertIn(cell, body[0])
+        self.assertGreater(display_width(body[0]), 80)
+
+    def test_space_separated_column_still_wraps_on_words(self):
+        lines = _render(
+            [{"#": "1", "Text": "alpha beta gamma delta epsilon"}],
+            ["#", "Text"],
+        )
+        body = "\n".join(lines[2:])
+        self.assertIn("alpha", body)
+        self.assertNotIn("alph\na", body)
+
+
 if __name__ == "__main__":
     unittest.main()
