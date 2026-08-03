@@ -168,4 +168,8 @@ def _render_invoice_detail(inv):
         print("  No line items.")
     else:
         _print_detail_table([_line_item_row(li, i, cur) for i, li in enumerate(items, 1)], LINE_ITEM_COLUMNS)
+
+    from . import log
+    log.set_context("invoice", inv["_id"], str(inv.get("invoice-id") or inv["_id"]))
+    print(f"\n  {DIM}Show this invoice's log: log{RESET}")
     print()

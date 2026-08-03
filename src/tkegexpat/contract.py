@@ -132,10 +132,14 @@ def _render_contract_detail(c):
     else:
         _print_detail_table([_party_row(pt, i) for i, pt in enumerate(parties, 1)], PARTY_COLUMNS)
 
+    from . import log
+    log.set_context("contract", c["_id"], c.get("contract-name") or c["_id"])
+
     if (c.get("contract-text") or "").strip():
-        print(f"\n  {DIM}Display the full contract text: view-content{RESET}\n")
+        print(f"\n  {DIM}Display the full contract text: view-content{RESET}")
     else:
         print()
+    print(f"  {DIM}Show this contract's log: log{RESET}\n")
 
 
 def cmd_view_content(args):

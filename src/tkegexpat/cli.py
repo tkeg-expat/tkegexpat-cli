@@ -170,6 +170,11 @@ def cmd_view_content(args):
     _vc(args)
 
 
+def cmd_log(args):
+    from .log import cmd_log as _log
+    _log(args)
+
+
 def cmd_message(args):
     from .message import cmd_message as _msg
     _msg(args)
@@ -284,6 +289,7 @@ def cmd_help(args):
         ("view-invoice <#>", "Open an invoice from the project in view"),
         ("view-contract <#>", "Open a contract from the project in view"),
         ("view-content", "Display the full text of the contract in view"),
+        ("log", "Show the log of the invoice / contract in view"),
         ("message [next]", "Messages for the project / company in view (paged)"),
         ("view <#>", "View details for the last listed items"),
         ("resolve <#>", "Resolve requirement products from the current product view"),
@@ -326,6 +332,7 @@ COMMANDS = {
     "view-invoice": cmd_view_invoice,
     "view-contract": cmd_view_contract,
     "view-content": cmd_view_content,
+    "log": cmd_log,
     "message": cmd_message,
     "view": cmd_view,
     "resolve": cmd_resolve,
