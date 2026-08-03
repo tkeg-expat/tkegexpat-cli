@@ -106,5 +106,30 @@ class PrintDetailTableCharWrap(unittest.TestCase):
         self.assertNotIn("alph\na", body)
 
 
+from tkegexpat import contract as contract_mod
+
+
+class ContractTextRendering(unittest.TestCase):
+    SAMPLE = (
+        "[h1]服务协定[/h1]\n"
+        "[ml][li indent=0]本協約由雙方簽署並同意以下條款，包含服務範圍、付款方式與終止條件。[/li]"
+        "[li indent=1]Sub-clause with ordinary spaced English text that should wrap.[/li][/ml]"
+    )
+
+    def test_renders_without_the_removed_local_wrapper(self):
+        self.assertFalse(hasattr(contract_mod, "_wrap_display"))
+
+    def test_bullets_and_cjk_render_within_width(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            contract_mod._print_contract_text(self.SAMPLE)
+        lines = buf.getvalue().splitlines()
+        self.assertTrue(any("•" in l for l in lines))
+        self.assertTrue(any("服务协定" in l for l in lines))
+        # No bbcode leaks through
+        self.assertNotIn("[li", buf.getvalue())
+        self.assertNotIn("[h1]", buf.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
