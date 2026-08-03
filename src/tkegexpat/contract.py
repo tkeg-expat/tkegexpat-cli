@@ -5,6 +5,7 @@ import sys
 
 from .api import api_get, api_list
 from .cit import _dot, _reset_dots, _print_detail_table, _print_kv_table, DIM, RESET
+from .i18n import wrap_display
 
 # Shared contract script: backs the project detail view (render_contracts) and
 # the standalone `contract` command (resolves by _id).
@@ -131,10 +132,14 @@ def _render_contract_detail(c):
     else:
         _print_detail_table([_party_row(pt, i) for i, pt in enumerate(parties, 1)], PARTY_COLUMNS)
 
+    from . import log
+    log.set_context("contract", c["_id"], c.get("contract-name") or c["_id"])
+
     if (c.get("contract-text") or "").strip():
-        print(f"\n  {DIM}Display the full contract text: view-content{RESET}\n")
+        print(f"\n  {DIM}Display the full contract text: view-content{RESET}")
     else:
         print()
+    print(f"  {DIM}Show this contract's log: log{RESET}\n")
 
 
 def cmd_view_content(args):
@@ -150,23 +155,6 @@ def cmd_view_content(args):
     print()
     _print_contract_text(text)
     print()
-
-
-def _wrap_display(text, width):
-    """Character-level wrap by display width (Chinese has no space break points)."""
-    from .i18n import display_width
-    out, cur, curw = [], "", 0
-    for ch in text:
-        cw = display_width(ch)
-        if curw + cw > width and cur:
-            out.append(cur)
-            cur, curw = ch, cw
-        else:
-            cur += ch
-            curw += cw
-    if cur:
-        out.append(cur)
-    return out or [""]
 
 
 def _print_contract_text(text):
@@ -211,5 +199,5 @@ def _print_contract_text(text):
             continue
         lead = len(line) - len(line.lstrip(" "))
         indent = " " * lead
-        for i, piece in enumerate(_wrap_display(content, max(20, width - lead))):
+        for i, piece in enumerate(wrap_display(content, max(20, width - lead))):
             print("  " + indent + ("  " if i else "") + piece)

@@ -1,6 +1,6 @@
 # TKEG Expat CLI — User Manual
 
-**Version 0.22.0**
+**Version 0.23.0**
 
 A simple tool that lets you look up TKEG Expat products, managed companies, tax data, and legal entity types from your computer's terminal (the black window where you type commands).
 
@@ -193,8 +193,8 @@ From within a project detail, open a specific row of any of those tables:
 
 ```
 tkegexpat> view-project-item 1     open item #1
-tkegexpat> view-invoice 2          open invoice #2
-tkegexpat> view-contract 1         open contract #1  (then view-content for its text)
+tkegexpat> view-invoice 2          open invoice #2  (then log for its history)
+tkegexpat> view-contract 1         open contract #1  (then view-content for its text, log for its history)
 ```
 
 ### `project-item <code | id> [status]`
@@ -248,7 +248,7 @@ tkegexpat> invoice 1111111114
 tkegexpat> invoice 1777069193142x368449971970985500
 ```
 
-The detail shows status, currency, pre-tax / tax / total, issue date, Stripe invoice id, belonging project, TKEG entity, and who issued it — plus a table of the invoice's line items (product, quantity, unit, pre-tax, tax, total).
+The detail shows status, currency, pre-tax / tax / total, issue date, Stripe invoice id, belonging project, TKEG entity, and who issued it — plus a table of the invoice's line items (product, quantity, unit, pre-tax, tax, total). Follow it with [`log`](#log) for the invoice's history.
 
 ### `contract <_id>`
 
@@ -258,7 +258,7 @@ Opens one contract directly by its internal **`_id`** (contracts have no short i
 tkegexpat> contract 1777069271956x625453515163327900
 ```
 
-The detail shows name, status, currency, value, generation / finalization dates, the associated project, and a table of signing parties (each resolved to its entity name).
+The detail shows name, status, currency, value, generation / finalization dates, the associated project, and a table of signing parties (each resolved to its entity name). Follow it with [`view-content`](#view-content) for the contract text, or [`log`](#log) for its history.
 
 ### `message [next]`
 
@@ -307,6 +307,26 @@ While viewing a contract, display its full text body — headings and clause lis
 tkegexpat> contract 1777069271956x625453515163327900
 tkegexpat> view-content
 ```
+
+### `log`
+
+While viewing an **invoice** or a **contract**, show that record's log — the history of what happened to it, oldest first:
+
+```
+tkegexpat> invoice 1111111126
+tkegexpat> log
+
+tkegexpat> contract 1777069271956x625453515163327900
+tkegexpat> log
+```
+
+An **invoice log** row shows the date and time, the status at that point (`QUOTE` · `INVOICE` · `RECEIPT` · `VOIDED`), whether a document (quote / invoice / receipt PDF) was generated, who recorded it, and the full log text.
+
+A **contract log** row shows the date and time, the status at that point (`Live` · `Processing` · `Needs Update` · `Expired`), who recorded it, and the full log text — including the contract link.
+
+The log text is stored bilingually and is shown exactly as recorded, in both English and 繁體中文.
+
+`log` also works after `view-invoice <#>` or `view-contract <#>` from a project detail — it always follows whichever invoice or contract you opened last. Records created before the portal migration show **The Red Queen** as the recorder.
 
 ### `view <number>`
 

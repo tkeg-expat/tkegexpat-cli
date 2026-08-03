@@ -56,6 +56,53 @@ def wrap_cjk(text: str, width: int) -> List[str]:
     return lines or ["-"]
 
 
+def wrap_display(text: str, width: int) -> List[str]:
+    """Wrap by display width, honoring embedded newlines and never overflowing.
+
+    Breaks on spaces like wrap_cjk, but streams a token character-by-character
+    when it is wider than the column: CJK runs and long URLs have no space break
+    points, and wrap_cjk lets those overflow the cell.
+    """
+    if not text or text == "-":
+        return [text or "-"]
+    if width < 1:
+        width = 1
+    lines = []
+    for paragraph in text.split("\n"):
+        if not paragraph.strip():
+            lines.append("")
+            continue
+        current = ""
+        current_w = 0
+        for token in paragraph.split(" "):
+            tw = display_width(token)
+            gap = 1 if current else 0
+            if tw > width:
+                # Oversized token: keep filling the line in progress, then split
+                # mid-token. Flushing first would orphan a leading bullet.
+                if current:
+                    current += " " * gap
+                    current_w += gap
+                for ch in token:
+                    cw = display_width(ch)
+                    if current_w + cw > width and current:
+                        lines.append(current)
+                        current, current_w = ch, cw
+                    else:
+                        current += ch
+                        current_w += cw
+                continue
+            if current and current_w + gap + tw > width:
+                lines.append(current)
+                current, current_w = "", 0
+                gap = 0
+            current += (" " * gap) + token
+            current_w += gap + tw
+        if current:
+            lines.append(current)
+    return lines or ["-"]
+
+
 def ljust_cjk(text: str, width: int) -> str:
     dw = display_width(text)
     return text + " " * max(0, width - dw)
