@@ -180,7 +180,7 @@ def _render_cos_detail(s):
         ("Main Product", _prod(s.get("main_product"))),
         ("Unit Price", _money(s.get("main_product_unit_price"), cur)),
         ("Currency", cur or "-"),
-        ("CRM", entity_cell(s.get("crm_entity"), "entity_crm")),
+        ("CRM", entity_cell(s.get("crm_entity"), "entity_employee")),
         ("User", _user(s.get("user"))),
         ("Logged In", "Yes" if s.get("user_logged_in") else ("No" if s.get("user_logged_in") is False else "-")),
         ("Created", _date(s.get("Created Date"))),

@@ -31,7 +31,7 @@ def _money(value, currency):
 
 def fetch_for_project(project_id):
     """All contracts whose associated project is `project_id`."""
-    return api_list("contract:contract", [
+    return api_list("contract", [
         {"key": "associated-project-new", "constraint_type": "equals", "value": project_id},
     ])
 
@@ -65,7 +65,7 @@ def _classify_contract_input(raw: str) -> str:
 def _lookup_contract_by_id(value):
     print(f"  Looking up contract by ID: {value} ...")
     try:
-        c = api_get(f"/api/1.1/obj/contract:contract/{value}").get("response", {})
+        c = api_get(f"/api/1.1/obj/contract/{value}").get("response", {})
     except Exception:
         c = None
     if not c or not c.get("_id"):
@@ -120,7 +120,7 @@ def _render_contract_detail(c):
 
     print("\n  Fetching signing parties ...")
     try:
-        parties = api_list("contract:singingparties", [
+        parties = api_list("contract_singing_parties", [
             {"key": "belonging-contract", "constraint_type": "equals", "value": c["_id"]},
         ])
     except Exception:

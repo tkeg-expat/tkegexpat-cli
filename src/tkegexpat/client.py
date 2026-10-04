@@ -31,7 +31,7 @@ def _batch_prime_names(prime_ids):
     for i in range(0, len(ids), 100):
         chunk = ids[i:i + 100]
         try:
-            rows = api_list("entity:prime", [
+            rows = api_list("entity_prime", [
                 {"key": "_id", "constraint_type": "in", "value": chunk},
             ])
         except Exception:
@@ -146,8 +146,8 @@ def _render_client_detail(c):
         ("Name", name),
         ("Client _id", c.get("_id")),
         ("TKEG id (Slug)", c.get("Slug") or "-"),
-        ("Belonging CRM", entity_cell(c.get("belonging_crm"), "entity_crm")),
-        ("TKEG Entity", entity_cell(c.get("belonging-tkeg-expat-entity"), "entity:tkegexpat")),
+        ("Belonging CRM", entity_cell(c.get("belonging_crm"), "entity_employee")),
+        ("TKEG Entity", entity_cell(c.get("belonging-tkeg-expat-entity"), "entity_tkegexpat")),
         ("Active", _yes_no(c.get("active-client"))),
         ("Miles", _num(c.get("miles"))),
         ("Total Qualifying Points", _num(c.get("total_qualifying_points"))),

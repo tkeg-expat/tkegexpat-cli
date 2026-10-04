@@ -81,7 +81,7 @@ class InvoiceLog(LogBase):
     def test_queries_the_invoice_log_type_by_its_link_field(self):
         self.run_log()
         self.assertEqual(self.calls, [(
-            "invoice:log",
+            "invoice_log",
             [{"key": "invoice", "constraint_type": "equals", "value": "inv1"}],
         )])
 
@@ -113,7 +113,7 @@ class ContractLog(LogBase):
     def test_queries_the_contract_record_type_by_its_link_field(self):
         self.run_log()
         self.assertEqual(self.calls, [(
-            "contract:record",
+            "contract_record",
             [{"key": "contract", "constraint_type": "equals", "value": "con1"}],
         )])
 

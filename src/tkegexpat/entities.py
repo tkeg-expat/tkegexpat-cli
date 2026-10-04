@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from .api import api_get
 
-# Every non-prime entity type links back to entity:prime (which holds
+# Every non-prime entity type links back to entity_prime (which holds
 # `entity_name`), but the link field name differs per type:
-#   entity_client / entity_crm      -> "prime_entity"
-#   entity:company:all              -> "prime entity"  (space)
-#   entity:tkegexpat                -> "element: prime entity"
+#   entity_client / entity_employee -> "prime_entity"
+#   entity_company                  -> "prime entity"  (space)
+#   entity_tkegexpat                -> "element: prime entity"
 _PRIME_LINK_FIELDS = ("prime_entity", "prime entity", "element: prime entity")
 
 
@@ -29,7 +29,7 @@ def resolve_prime_name(ref_id, typename):
             break
     if not prime_id:
         return None
-    return _get(f"/api/1.1/obj/entity:prime/{prime_id}").get("entity_name")
+    return _get(f"/api/1.1/obj/entity_prime/{prime_id}").get("entity_name")
 
 
 def entity_cell(ref_id, typename):
@@ -41,17 +41,17 @@ def entity_cell(ref_id, typename):
 
 
 def prime_name(prime_id):
-    """entity:prime -> entity_name (for refs that already point at a prime)."""
+    """entity_prime -> entity_name (for refs that already point at a prime)."""
     if not prime_id:
         return None
-    return _get(f"/api/1.1/obj/entity:prime/{prime_id}").get("entity_name")
+    return _get(f"/api/1.1/obj/entity_prime/{prime_id}").get("entity_name")
 
 
 def project_label(project_id):
     """'project_name (TKEG <id>)' over the project UID, or '-' if empty."""
     if not project_id:
         return "-"
-    pr = _get(f"/api/1.1/obj/projects:all/{project_id}")
+    pr = _get(f"/api/1.1/obj/projects/{project_id}")
     if not pr:
         return str(project_id)
     name = pr.get("project_name") or "-"

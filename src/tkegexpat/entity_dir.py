@@ -8,14 +8,18 @@ from .countries import id_to_abbr
 from .cit import _dot, _reset_dots, _print_detail_table, _print_kv_table, DIM, RESET
 from .entities import prime_name, entity_cell
 
-# Read-only directory for the internal-team entity types (crm / rd / admin).
-# Each: bare -> list all; <_id> -> detail. All resolve their name via
-# `prime_entity` -> entity:prime.entity_name.
+# Read-only directory for the internal team (crm / rd / admin). Since the
+# 2026-10-05 backend rename all three live in ONE type, entity_employee, told
+# apart by `employee_type` (crm | rd | admin | marketer). Each: bare -> list
+# that employee_type; <_id> -> detail. All resolve their name via
+# `prime_entity` -> entity_prime.entity_name.
+
+TYPENAME = "entity_employee"
 
 CONFIG = {
-    "crm": {"type": "entity_crm", "label": "CRM Entities"},
-    "rd": {"type": "entity_rd", "label": "RD Operator Entities"},
-    "admin": {"type": "entity_admin", "label": "Admin Entities"},
+    "crm": {"employee_type": "crm", "label": "CRM Entities"},
+    "rd": {"employee_type": "rd", "label": "RD Operator Entities"},
+    "admin": {"employee_type": "admin", "label": "Admin Entities"},
 }
 
 LIST_COLUMNS = ["#", "Name", "Email", "Jurisdictions"]
@@ -25,14 +29,13 @@ _EXTRA = {
     "crm": [
         ("Languages", "authorized-language", "join"),
         ("Active", "active", "bool"),
-        ("CRM Busy Rate", "crm-busy-rate", "raw"),
+        ("CRM Busy Rate", "single-busy-rate", "raw"),
         ("Pending Leads", "pending-lead-number", "raw"),
         ("Pending Projects", "pending-project-number", "raw"),
     ],
     "rd": [
-        ("Authorized Service", "authorized_service", "join"),
-        ("RD Busy Rate", "rd-busy-rate", "raw"),
-        ("On-going Items", "on-going-item-number", "raw"),
+        ("RD Busy Rate", "single-busy-rate", "raw"),
+        ("On-going Items", "pending-project-number", "raw"),
     ],
     "admin": [],
 }
@@ -61,10 +64,7 @@ def _yes_no(v):
 
 
 def _points(rec):
-    # admin's field name has a trailing space; crm/rd do not
     v = rec.get("available-points")
-    if v is None:
-        v = rec.get("available-points ")
     return str(v) if v is not None else "-"
 
 
@@ -88,7 +88,7 @@ def _list_row(rec, i):
 
 def cmd_entity(kind, args):
     cfg = CONFIG[kind]
-    typ = cfg["type"]
+    etype = cfg["employee_type"]
 
     if args:
         raw = args[0].strip()
@@ -96,18 +96,22 @@ def cmd_entity(kind, args):
             print(f"'{raw}' is not a bubble _id. Usage: {kind}   or   {kind} <_id>", file=sys.stderr)
             return
         try:
-            rec = api_get(f"/api/1.1/obj/{typ}/{raw}").get("response", {})
+            rec = api_get(f"/api/1.1/obj/{TYPENAME}/{raw}").get("response", {})
         except Exception:
             rec = None
-        if not rec or not rec.get("_id"):
-            print(f"  No {kind} entity found with ID '{raw}'.", file=sys.stderr)
+        if not rec or not rec.get("_id") or rec.get("employee_type") != etype:
+            other = (rec or {}).get("employee_type")
+            hint = f" (employee_type is {other} — try: {other} {raw})" if other in CONFIG else ""
+            print(f"  No {kind} entity found with ID '{raw}'.{hint}", file=sys.stderr)
             return
         _render_entity_detail(kind, rec)
         return
 
     # bare -> list all
     print(f"  Fetching {cfg['label'].lower()} ...")
-    records = api_list(typ)
+    records = api_list(TYPENAME, [
+        {"key": "employee_type", "constraint_type": "equals", "value": etype},
+    ])
     _last.update(kind=kind, records=records)
     if not records:
         print(f"\n  No {cfg['label'].lower()}.")
@@ -158,7 +162,7 @@ def _render_entity_detail(kind, rec):
         ("Email", rec.get("tkeg-expat-email") or "-"),
         ("Portal User", _user_name(rec.get("portal_user"))),
         ("WeCom ID", rec.get("wecom_id") or "-"),
-        ("Reports To", entity_cell(rec.get("direct_report_of"), "entity_admin") if rec.get("direct_report_of") else "-"),
+        ("Reports To", entity_cell(rec.get("belonging_admin_entity_new"), TYPENAME) if rec.get("belonging_admin_entity_new") else "-"),
         ("Jurisdictions", _abbrs(rec.get("authorized_jurisdiction"))),
         ("Available Points", _points(rec)),
     ]

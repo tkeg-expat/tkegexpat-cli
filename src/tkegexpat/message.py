@@ -9,7 +9,7 @@ from .i18n import strip_markup
 # Shared message viewer. The current detail page (project / project-item /
 # company) sets the context; `message` pages through that entity's messages.
 #
-# Messages are `message:project+company+todo` with TWO link fields:
+# Messages are `message_operation` with TWO link fields:
 #   entity: project   (~11k msgs)   entity: company  (~1k msgs)
 # There is no project-item link, so a project-item shows its belonging
 # project's messages (kind "project", id = belonging project).
@@ -62,7 +62,7 @@ def cmd_message(args):
 
     try:
         page = api_page(
-            "message:project+company+todo", _constraint(),
+            "message_operation", _constraint(),
             cursor=start, limit=PAGE_SIZE,
             sort_field="NEW_date_created", descending=True,
         )

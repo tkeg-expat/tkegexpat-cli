@@ -8,8 +8,8 @@ from .cit import _dot, _reset_dots, _print_detail_table
 # Shared log viewer. The invoice / contract detail in view sets the context;
 # `log` lists that record's entries.
 #
-#   invoice  -> invoice:log      linked by `invoice`   (max 4 per invoice)
-#   contract -> contract:record  linked by `contract`  (max 4 per contract)
+#   invoice  -> invoice_log      linked by `invoice`   (max 4 per invoice)
+#   contract -> contract_record  linked by `contract`  (max 4 per contract)
 #
 # Counts are tiny, so api_list (fetch-everything) is right here — no paging.
 # The authoritative event date is `date-logged` / `record-date`: every row's
@@ -18,7 +18,7 @@ from .cit import _dot, _reset_dots, _print_detail_table
 
 _SPEC = {
     "invoice": {
-        "typename": "invoice:log",
+        "typename": "invoice_log",
         "link": "invoice",
         "date": "date-logged",
         "status": "invoice-status",
@@ -27,7 +27,7 @@ _SPEC = {
         "title": "Invoice Log",
     },
     "contract": {
-        "typename": "contract:record",
+        "typename": "contract_record",
         "link": "contract",
         "date": "record-date",
         "status": "status",

@@ -1,6 +1,6 @@
 # TKEG Expat CLI — User Manual
 
-**Version 0.23.0**
+**Version 0.24.0**
 
 A simple tool that lets you look up TKEG Expat products, managed companies, tax data, and legal entity types from your computer's terminal (the black window where you type commands).
 
@@ -282,9 +282,9 @@ tkegexpat> view 1                             open the first one
 tkegexpat> crm 1709124866674x995775865500729300   open one directly by its _id
 ```
 
-- `crm` — CRM entities · `rd` — RD operator entities · `admin` — admin entities
+- `crm` — CRM entities · `rd` — RD operator entities · `admin` — admin entities. All three read the same employee records, filtered by role; an `_id` that belongs to another role is reported as not found, with the command to use instead.
 
-The list shows each entity's name, email, and authorized jurisdictions. The detail adds portal user, WeCom ID, who they report to, points, and type-specific fields (CRM: languages, active, busy rate, pending leads/projects; RD: authorized services, busy rate, on-going items). Passing an `_id` (e.g. one you copied from a project or company detail) opens that entity directly.
+The list shows each entity's name, email, and authorized jurisdictions. The detail adds portal user, WeCom ID, who they report to, points, and type-specific fields (CRM: languages, active, busy rate, pending leads/projects; RD: busy rate, on-going items). Passing an `_id` (e.g. one you copied from a project or company detail) opens that entity directly.
 
 ### `client`
 

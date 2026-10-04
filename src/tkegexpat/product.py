@@ -298,7 +298,7 @@ def _resolve_supplier_name(supplier_id: str) -> str:
         sv = supplier.get("response", supplier)
         prime_id = sv.get("prime_entity")
         if prime_id:
-            prime = api_get(f"/api/1.1/obj/entity:prime/{prime_id}")
+            prime = api_get(f"/api/1.1/obj/entity_prime/{prime_id}")
             pv = prime.get("response", prime)
             return pv.get("entity_name", supplier_id)
     except Exception:

@@ -28,7 +28,7 @@ def cmd_vat(args):
     constraints = [
         {"key": "country_region", "constraint_type": "equals", "value": country["_id"]},
     ]
-    rates = api_list("info:tax:vatrate", constraints)
+    rates = api_list("info_tax_vat_rate", constraints)
 
     _reset_dots()
 

@@ -28,7 +28,7 @@ def _money(value, currency):
 
 def fetch_for_project(project_id):
     """All invoices whose belonging project is `project_id`."""
-    return api_list("project:invoice", [
+    return api_list("invoice", [
         {"key": "belonging projects new", "constraint_type": "equals", "value": project_id},
     ])
 
@@ -69,7 +69,7 @@ def _classify_invoice_input(raw: str) -> str:
 def _lookup_invoice_by_id(value):
     print(f"  Looking up invoice by ID: {value} ...")
     try:
-        inv = api_get(f"/api/1.1/obj/project:invoice/{value}").get("response", {})
+        inv = api_get(f"/api/1.1/obj/invoice/{value}").get("response", {})
     except Exception:
         inv = None
     if not inv or not inv.get("_id"):
@@ -81,7 +81,7 @@ def _lookup_invoice_by_id(value):
 def _lookup_invoice_by_tkeg_id(value):
     print(f"  Looking up invoice by invoice-id: {value} ...")
     try:
-        rows = api_list("project:invoice", [
+        rows = api_list("invoice", [
             {"key": "invoice-id", "constraint_type": "equals", "value": value},
         ])
     except Exception as e:
@@ -151,14 +151,14 @@ def _render_invoice_detail(inv):
         ("Issued", _date(inv.get("issuing date"))),
         ("Stripe Invoice ID", inv.get("stripe-invoice-id") or "-"),
         ("Belonging Project", project_label(inv.get("belonging projects new"))),
-        ("TKEG Entity", entity_cell(inv.get("tkeg-expat-entity"), "entity:tkegexpat")),
+        ("TKEG Entity", entity_cell(inv.get("tkeg-expat-entity"), "entity_tkegexpat")),
         ("Issued By", _resolve_user_name(inv.get("tkeg expat portal user issued"))),
     ]
     _print_kv_table(info)
 
     print("\n  Fetching line items ...")
     try:
-        items = api_list("invoice:lineitem", [
+        items = api_list("invoice_line_item", [
             {"key": "belonging invoice", "constraint_type": "equals", "value": inv["_id"]},
         ])
     except Exception:

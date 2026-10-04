@@ -34,7 +34,7 @@ def _date(value):
 
 def fetch_for_project(project_id):
     """All project items whose belonging project is `project_id`."""
-    return api_list("project:projectitem", [
+    return api_list("project_item", [
         {"key": "project: belonging-project", "constraint_type": "equals", "value": project_id},
     ])
 
@@ -94,7 +94,7 @@ def _classify_item_input(raw: str) -> str:
 def _lookup_item_by_id(value):
     print(f"  Looking up project item by ID: {value} ...")
     try:
-        it = api_get(f"/api/1.1/obj/project:projectitem/{value}").get("response", {})
+        it = api_get(f"/api/1.1/obj/project_item/{value}").get("response", {})
     except Exception:
         it = None
     if not it or not it.get("_id"):
@@ -145,7 +145,7 @@ def cmd_project_item(args):
     label = f"{country['abbr']} + {service_type}" + (f" — {status_filter}" if status_filter else "")
     print(f"  Fetching project items: {label} ...")
 
-    items = api_list("project:projectitem", [
+    items = api_list("project_item", [
         {"key": "country_region", "constraint_type": "equals", "value": country["_id"]},
         {"key": "service_type", "constraint_type": "equals", "value": service_type},
     ] + extra)
@@ -184,7 +184,7 @@ def _resolve_project_label(proj_id):
     if not proj_id:
         return "-"
     try:
-        pr = api_get(f"/api/1.1/obj/projects:all/{proj_id}").get("response", {})
+        pr = api_get(f"/api/1.1/obj/projects/{proj_id}").get("response", {})
     except Exception:
         return str(proj_id)
     name = pr.get("project_name") or "-"
@@ -236,9 +236,9 @@ def _render_item_detail(it):
         ("Profit (USD)", _money(it.get("Finalization: USD Profit"), "USD")),
         ("Points Redemption", str(pts) if pts is not None else "-"),
         ("Client", entity_cell(it.get("data: client"), "entity_client")),
-        ("CRM", entity_cell(it.get("data: crm"), "entity_crm")),
+        ("CRM", entity_cell(it.get("data: crm"), "entity_employee")),
         ("Supplier", entity_cell(it.get("supplier_entity"), "entity_supplier")),
-        ("RD Operator", entity_cell(it.get("rd-entity"), "entity_rd")),
+        ("RD Operator", entity_cell(it.get("entity_rd_new"), "entity_employee")),
     ]
     _print_kv_table(info)
 

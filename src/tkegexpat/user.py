@@ -37,15 +37,17 @@ def _email(u):
 def _find_user_entities(uid):
     """Reverse-lookup the current user's team / client entity ids.
 
-    crm / rd / admin link to the user via `portal_user`; client via
+    crm / rd / admin are all entity_employee rows (told apart by
+    `employee_type`) linked to the user via `portal_user`; client via
     `user_account` (a list — not always API-searchable, so it degrades to '-')."""
     found = {}
-    for label, typ in (("CRM Entity", "entity_crm"), ("RD Entity", "entity_rd"), ("Admin Entity", "entity_admin")):
-        try:
-            rows = api_list(typ, [{"key": "portal_user", "constraint_type": "equals", "value": uid}])
-        except Exception:
-            rows = []
-        found[label] = rows[0]["_id"] if rows else "-"
+    try:
+        rows = api_list("entity_employee", [{"key": "portal_user", "constraint_type": "equals", "value": uid}])
+    except Exception:
+        rows = []
+    for label, etype in (("CRM Entity", "crm"), ("RD Entity", "rd"), ("Admin Entity", "admin")):
+        match = [r for r in rows if r.get("employee_type") == etype]
+        found[label] = match[0]["_id"] if match else "-"
     try:
         rows = api_list("entity_client", [{"key": "user_account", "constraint_type": "contains", "value": uid}])
         found["Client Entity"] = rows[0]["_id"] if rows else "-"

@@ -27,7 +27,7 @@ def _resolve_prime(prime_id):
     if not prime_id:
         return {}
     try:
-        rec = api_get(f"/api/1.1/obj/entity:prime/{prime_id}")
+        rec = api_get(f"/api/1.1/obj/entity_prime/{prime_id}")
         return rec.get("response", rec)
     except Exception:
         return {}
@@ -91,7 +91,7 @@ def _lookup_company_by_id(value: str):
     """Fetch one company by its Bubble _id, or None if not found."""
     print(f"  Looking up company by ID: {value} ...")
     try:
-        resp = api_get(f"/api/1.1/obj/entity:company:all/{value}")
+        resp = api_get(f"/api/1.1/obj/entity_company/{value}")
         c = resp.get("response", resp)
     except Exception:
         c = None
@@ -105,7 +105,7 @@ def _lookup_company_by_tkeg_id(value: str):
     """Fetch one company by its tkeg_company_id, or None if not found."""
     print(f"  Looking up company by TKEG company ID: {value} ...")
     try:
-        companies = api_list("entity:company:all", [
+        companies = api_list("entity_company", [
             {"key": "tkeg_company_id", "constraint_type": "equals", "value": value},
         ])
     except Exception as e:
@@ -180,7 +180,7 @@ def cmd_company(args):
         label += f" — {status_filter}"
     print(f"  Fetching companies: {label} ...")
 
-    companies = api_list("entity:company:all", constraints)
+    companies = api_list("entity_company", constraints)
 
     if status_filter:
         companies = [
@@ -279,7 +279,7 @@ def _render_company_detail(c, lang, idx=None):
     memo_id = c.get("new: additional information")
     if memo_id:
         try:
-            msg = api_get(f"/api/1.1/obj/message:project+company+todo/{memo_id}")
+            msg = api_get(f"/api/1.1/obj/message_operation/{memo_id}")
             m = msg.get("response", msg)
             body = (m.get("message") or "").strip()
             if body:
@@ -295,7 +295,7 @@ def _render_company_detail(c, lang, idx=None):
     due_constraints = [
         {"key": "company-element", "constraint_type": "equals", "value": company_id},
     ]
-    dues = api_list("company:due-dates", due_constraints)
+    dues = api_list("company_due_dates", due_constraints)
 
     if not dues:
         print(f"\n{_dot('Due Dates')}")

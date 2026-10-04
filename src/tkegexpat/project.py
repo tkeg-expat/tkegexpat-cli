@@ -105,7 +105,7 @@ def _classify_project_input(raw: str) -> str:
 def _lookup_project_by_id(value: str):
     print(f"  Looking up project by ID: {value} ...")
     try:
-        resp = api_get(f"/api/1.1/obj/projects:all/{value}")
+        resp = api_get(f"/api/1.1/obj/projects/{value}")
         p = resp.get("response", resp)
     except Exception:
         p = None
@@ -124,7 +124,7 @@ def _lookup_project_by_tkeg_id(value: str):
     print(f"  Looking up project by TKEG project id / slug: {value} ...")
     for key in ("tkeg_project_id", "Slug"):
         try:
-            projects = api_list("projects:all", [
+            projects = api_list("projects", [
                 {"key": key, "constraint_type": "equals", "value": value},
             ])
         except Exception as e:
@@ -186,7 +186,7 @@ def cmd_project(args):
         {"key": "country_region", "constraint_type": "contains", "value": country["_id"]},
         {"key": "service_type", "constraint_type": "contains", "value": service_type},
     ] + extra
-    projects = api_list("projects:all", constraints)
+    projects = api_list("projects", constraints)
     _last_projects = projects
 
     if not projects:
@@ -249,9 +249,9 @@ def _render_project_detail(p):
         ("Start Date", _fmt_date(p.get("starting_date"))),
         ("End Date", _fmt_date(end_date)),
         ("Client Entity", entity_cell(p.get("client_entity"), "entity_client")),
-        ("TKEG Entity", entity_cell(p.get("Entity: TKEG Expat"), "entity:tkegexpat")),
-        ("CRM Entity", entity_cell(p.get("crm_entity"), "entity_crm")),
-        ("Company Entity", entity_cell(p.get("comapny_entity"), "entity:company:all")),
+        ("TKEG Entity", entity_cell(p.get("Entity: TKEG Expat"), "entity_tkegexpat")),
+        ("CRM Entity", entity_cell(p.get("crm_entity"), "entity_employee")),
+        ("Company Entity", entity_cell(p.get("comapny_entity"), "entity_company")),
     ]
     _print_kv_table(info)
 

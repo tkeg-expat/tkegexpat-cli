@@ -4,10 +4,10 @@ from .api import api_get, api_list
 from .cit import _dot, _reset_dots, _print_detail_table
 
 # TKEG Expat's own group legal entities. Each record links to a master
-# entity:prime record (holding the canonical name + address) and carries an
+# entity_prime record (holding the canonical name + address) and carries an
 # `active` flag. These records also hold Stripe keys / bank details — we read
 # only name / address / active and never touch those.
-TKEGEXPAT_TYPE = "entity:tkegexpat"
+TKEGEXPAT_TYPE = "entity_tkegexpat"
 PRIME_FIELD = "element: prime entity"
 
 TABLE_COLUMNS = ["#", "Name", "Address", "Active"]
@@ -17,7 +17,7 @@ def _resolve_prime(prime_id):
     if not prime_id:
         return {}
     try:
-        rec = api_get(f"/api/1.1/obj/entity:prime/{prime_id}")
+        rec = api_get(f"/api/1.1/obj/entity_prime/{prime_id}")
         return rec.get("response", rec)
     except Exception:
         return {}
